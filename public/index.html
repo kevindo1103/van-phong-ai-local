@@ -70,6 +70,17 @@ body.zoomed .bar{top:auto;bottom:14px;left:auto;right:14px;z-index:30}
 .view-choice{font:600 12px "Be Vietnam Pro",system-ui,sans-serif;background:rgba(10,18,28,.9);color:#d3ddeb;border:1px solid rgba(190,208,231,.2);border-radius:11px;padding:10px 13px;cursor:pointer}
 .view-choice.active{background:var(--gold);color:#111;border-color:transparent}
 #office-directory{position:fixed;z-index:11;top:98px;right:16px;bottom:48px;width:300px;overflow-y:auto;padding:16px;background:rgba(9,15,24,.92);border:1px solid rgba(194,211,235,.18);border-radius:17px;box-shadow:0 16px 50px rgba(0,0,0,.42);backdrop-filter:blur(18px);pointer-events:auto}
+#chat-add-toggle{width:100%;padding:10px 12px;border-radius:10px;background:rgba(124,207,155,.13);color:#a8eccc;border:1px solid rgba(124,207,155,.45);font:700 12px "Be Vietnam Pro",system-ui;cursor:pointer;text-align:center}
+#chat-add-toggle:hover{background:rgba(124,207,155,.2)}
+#chat-add-form{margin-top:10px;padding:11px;border:1px solid rgba(200,216,235,.18);border-radius:10px;background:rgba(11,16,25,.9);display:grid;gap:7px}
+#chat-add-form[hidden],#chat-add-result[hidden]{display:none}
+#chat-add-form label{font-size:10px;font-weight:700;color:#b2c5da}
+#chat-add-form input,#chat-add-form select{width:100%;border:1px solid rgba(189,206,228,.25);border-radius:8px;background:#101824;color:#f2f7fd;padding:9px 10px;font:12px "Be Vietnam Pro",system-ui}
+#chat-add-form button,#chat-copy{padding:9px 12px;background:rgba(236,201,112,.88);color:#0b1018;border:0;border-radius:8px;font:700 11px "Be Vietnam Pro",system-ui;cursor:pointer}
+#chat-add-form button:disabled{opacity:.6;cursor:wait}
+#chat-add-msg{font-size:11px;line-height:1.45;color:#e3a9b0}
+#chat-add-result{margin-top:10px;border:1px solid rgba(124,207,155,.3);background:rgba(34,60,46,.2);border-radius:10px;padding:10px;display:grid;gap:8px;font-size:11px;color:#bfd6c7;line-height:1.5}
+#chat-add-result code{display:block;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;font:10px "JetBrains Mono",monospace;color:#d7e7fc;background:rgba(9,15,24,.85);border:1px solid rgba(177,193,219,.15);border-radius:7px;padding:7px}
 .dir-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.dir-head b{font-size:15px}.dir-head small{color:#b7c5d8;font-size:11px}
 .dir-help{margin:7px 0 13px;color:#a5b6ca;line-height:1.45;font-size:11px}
 .dir-rooms{display:grid;grid-template-columns:1fr;gap:5px}
@@ -146,6 +157,23 @@ body.zoomed .bar .pill{display:none}
 <aside id="office-directory" aria-label="Các phòng và phiên AI">
   <div class="dir-head"><b>Đội AI · Phòng ban</b><small id="dir-summary">Đang kết nối</small></div>
   <p class="dir-help">Chọn một phòng để phóng to. Chọn session để xem trạng thái và chuyển phòng.</p>
+  <div class="dir-add">
+    <button id="chat-add-toggle" type="button" aria-expanded="false">+ Thêm phiên ChatGPT</button>
+    <form id="chat-add-form" hidden>
+      <label for="chat-add-name">Tên cuộc trò chuyện</label>
+      <input id="chat-add-name" type="text" maxlength="100" placeholder="VD: ChatGPT - Phân tích ERP" autocomplete="off" required>
+      <label for="chat-add-room">Phòng làm việc</label>
+      <select id="chat-add-room"></select>
+      <button id="chat-add-submit" type="submit">Đăng ký phiên</button>
+      <div id="chat-add-msg" role="status"></div>
+    </form>
+    <div id="chat-add-result" hidden>
+      <strong>Đã thêm vào văn phòng (chưa kết nối)</strong>
+      <span>Gửi lệnh này vào cuộc trò chuyện ChatGPT cần kết nối. Lệnh phải được chạy trên ThinkPad qua công cụ được cấp quyền:</span>
+      <code id="chat-add-command"></code>
+      <button type="button" id="chat-copy">Sao chép lệnh</button>
+    </div>
+  </div>
   <div id="dir-rooms" class="dir-rooms"></div>
   <div class="dir-divider"></div>
   <div class="dir-section"><b id="dir-section-title">Tất cả session</b><button id="dir-show-all" type="button">Hiện tất cả</button></div>
@@ -667,6 +695,58 @@ for (const room of directoryRooms) {
   b.addEventListener("click", () => setOfficeView("office", room.id));
   $("dir-rooms").appendChild(b); dirButtons.set(room.id, { b, count });
 }
+function chatHeartbeatCommand(id) {
+  return "node D:\\AI-Office-Local\\tools\\work-session.js heartbeat --kind chat --id " + id + " --state active";
+}
+const chatForm = $("chat-add-form");
+for (const room of directoryRooms) {
+  const option = h("option", "", room.label);
+  option.value = room.id;
+  $("chat-add-room").appendChild(option);
+}
+$("chat-add-room").value = "unassigned";
+$("chat-add-toggle").addEventListener("click", () => {
+  chatForm.hidden = !chatForm.hidden;
+  $("chat-add-toggle").setAttribute("aria-expanded", String(!chatForm.hidden));
+  if (!chatForm.hidden) $("chat-add-name").focus();
+});
+chatForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const name = $("chat-add-name").value.trim();
+  const room = $("chat-add-room").value;
+  const submit = $("chat-add-submit");
+  const msg = $("chat-add-msg");
+  msg.textContent = "";
+  if (!name) return;
+  submit.disabled = true;
+  try {
+    const response = await fetch("/api/sessions/register", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, room })
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "HTTP " + response.status);
+    $("chat-add-command").textContent = chatHeartbeatCommand(data.bridgeId);
+    $("chat-copy").textContent = "Sao chép lệnh";
+    $("chat-add-result").hidden = false;
+    chatForm.hidden = true;
+    $("chat-add-toggle").setAttribute("aria-expanded", "false");
+    $("chat-add-name").value = "";
+    directorySignature = "";
+    const stateResponse = await fetch("/state", { cache: "no-store" });
+    if (stateResponse.ok) apply(await stateResponse.json());
+  } catch (error) {
+    msg.textContent = "Không đăng ký được: " + error.message;
+  } finally { submit.disabled = false; }
+});
+$("chat-copy").addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText($("chat-add-command").textContent);
+    $("chat-copy").textContent = "Đã sao chép";
+  } catch {
+    $("chat-copy").textContent = "Hãy chọn và sao chép lệnh phía trên";
+  }
+});
 let directorySignature = "";
 function renderDirectory(s) {
   const members = s.agents || [];
@@ -881,6 +961,28 @@ function showCard() {
       (a.detailUpdatedAt ? " · cập nhật " + ago(a.detailUpdatedAt) + " trước" : " · chưa có thời điểm báo nội dung") +
       ". Heartbeat xác nhận kết nối, không xác minh chất lượng hay kết quả công việc."));
     info.appendChild(detail);
+  }
+  if (a.platform === "chatgpt" && a.bridgeId) {
+    const connect = h("section", "work-detail");
+    connect.appendChild(h("h5", "", "KẾT NỐI PHIÊN CHATGPT"));
+    const field = h("div", "work-field");
+    const command = chatHeartbeatCommand(a.bridgeId);
+    const line = h("p", "", command);
+    line.style.cssText = "font:10px 'JetBrains Mono',monospace;user-select:text;overflow-wrap:anywhere";
+    field.append(h("strong", "", "Lệnh heartbeat cho phiên này"), line);
+    const copy = h("button", "", "Sao chép lệnh");
+    copy.style.marginTop = "8px";
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(command);
+        copy.textContent = "Đã sao chép";
+      } catch { copy.textContent = "Hãy sao chép lệnh ở trên"; }
+    });
+    field.appendChild(copy);
+    connect.append(field, h("div", "work-source",
+      "Mã local do văn phòng cấp; không phải ID thật của cuộc trò chuyện trên ChatGPT. " +
+      "Phiên chỉ có ACTIVE khi gửi heartbeat qua công cụ đã được cấp quyền."));
+    info.appendChild(connect);
   }
   if (!a.ceo) {
     info.appendChild(h("div", "m", "Phòng: " + OfficeRooms.label(a.room) +

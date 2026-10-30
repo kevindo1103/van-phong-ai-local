@@ -4,8 +4,11 @@
 const path = require("node:path");
 const { loadConfig } = require("../lib/config");
 const work = require("../lib/work-sessions");
+const officeRooms = require("../public/rooms");
+const { createStore: createRoomStore } = require("../lib/session-rooms");
 const cfg = loadConfig(path.resolve(__dirname, ".."));
 if (!cfg) { console.error("Run npm run setup first."); process.exit(1); }
+const manualRooms = createRoomStore(cfg.dataDir);
 const args = process.argv.slice(2);
 const command = args.shift() || "help";
 function opt(name) {
@@ -17,11 +20,13 @@ function current(id, kind) {
   return work.list(cfg.dataDir).find((s) => s.key === key);
 }
 function report(entry) {
+  const room = manualRooms.get(entry.key) || entry.room;
   return {
     key: entry.key,
     title: entry.title,
     platform: entry.platform,
-    room: entry.room,
+    room,
+    roomLabel: officeRooms.label(room),
     reportedState: entry.reportedState,
     status: entry.status,
     connection: entry.connection,
@@ -77,4 +82,10 @@ try {
       }));
     }
   } else { usage(); process.exitCode = 1; }
-} catch (e) { console.error(e.message); process.exitCode = 1; }
+} catch (e) {
+  if (["EPERM", "EACCES"].includes(e.code)) {
+    console.error("HEARTBEAT_PERMISSION_DENIED: check Desktop Commander/Work tool authorization for the local command and data directory. System ACLs were not changed.");
+  }
+  console.error((e.code ? e.code + ": " : "") + e.message);
+  process.exitCode = 1;
+}

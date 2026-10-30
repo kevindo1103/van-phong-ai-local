@@ -59,10 +59,18 @@ Văn phòng có cầu nối Work heartbeat (chỉ ghi metadata local), theo cơ 
 - Heartbeat sau đó chỉ có `--state` vẫn giữ nguyên mô tả cuối. Khi hết vướng mắc: `--clear-blocker`. Bảng chi tiết luôn ghi rõ đây là báo cáo agent và thời điểm cập nhật, không tự suy luận từ tên Recents.
 - Work agent có Remote Desktop Commander trên ThinkPad phải tự gọi heartbeat khi bắt đầu, trong lúc làm việc (mỗi 2–3 phút) và lúc kết thúc. Ví dụ James: `node D:\AI-Office-Local\tools\work-session.js heartbeat --id project-james --state active`. Sau khi đăng ký, chỉ cần ID và state, không cần nhắc lại tên. Nếu agent đang thực hiện một tool call kéo dài thì không thể báo heartbeat trong khi chính tool call đó đang chặn; UI sẽ ghi `ACTIVE · CŨ` cho tới lần cập nhật tiếp theo. Đây không phải API tự động truy cập trạng thái các phiên ChatGPT cloud.
 - Các tên trong ảnh được đăng ký local ở data/work-sessions/ với trạng thái Chưa kết nối; không được xem là bằng chứng chúng đang hoạt động.
+- Nếu phiên Work báo **EPERM**, kiểm tra thông báo cấp quyền của công cụ trong chính phiên đó: cho phép gọi Desktop Commander và lệnh Node trên ThinkPad với thư mục `D:\AI-Office-Local\data\work-sessions`. Không tự chỉnh quyền NTFS/ACL, không tắt bảo mật. Code có thử lại ngắn khi Windows khóa tệp JSON trong lúc ghi; nếu quyền bị chặn từ phía công cụ thì vẫn cần phê duyệt quyền thông qua công cụ.
 
 ## Theo dõi ChatGPT Chat (riêng từng cuộc trò chuyện)
 
-Cầu nối có loại session chat bên cạnh Work (work là mặc định). Một cuộc trò chuyện cần ID ổn định và khác nhau giữa các phiên. Không suy đoán ID thật từ tên hoặc tự đọc Recents.
+Cậu có thể thêm phiên ngay trên giao diện 3D:
+
+1. Mở http://127.0.0.1:7788 và nhấn **+ Thêm phiên ChatGPT** ở bảng bên phải.
+2. Nhập tên phiên (ví dụ ChatGPT - Báo cáo B05), chọn phòng và nhấn **Đăng ký phiên**.
+3. Robot xuất hiện với trạng thái **Chưa kết nối**. Bấm **Sao chép lệnh** để lấy lệnh heartbeat với mã local đã sinh.
+4. Dán lệnh đó vào cuộc trò chuyện ChatGPT muốn kết nối, yêu cầu phiên dùng công cụ Desktop Commander trên ThinkPad để chạy khi bắt đầu xử lý và báo trạng thái sau mỗi 2–3 phút. Khi hoàn thành đổi active thành done.
+
+Mỗi phiên có một **bridgeId** riêng do localhost sinh, không phải ID hội thoại thật của ChatGPT. Mã đó có thể xem lại khi bấm vào robot. Việc mở ChatGPT tab/Recents không tự động tạo heartbeat; khi công cụ chưa có quyền chạy trên ThinkPad thì robot vẫn ở trạng thái Chưa kết nối.
 
     node tools/work-session.js register --kind chat --id chat-office-20261030 --name "ChatGPT · Office Assistant"
     node tools/work-session.js heartbeat --kind chat --id chat-office-20261030 --state active

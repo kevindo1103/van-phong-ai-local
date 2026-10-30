@@ -643,6 +643,41 @@ async function assignSessionRoom(req, res) {
     }
   }
 }
+// Register a ChatGPT chat alias from the localhost UI. A new session is not
+// treated as active until the real conversation reports a heartbeat.
+async function registerChatSession(req, res) {
+  const sendError = (code, message) => {
+    res.writeHead(code, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ error: message }));
+  };
+  try {
+    let raw = "";
+    for await (const chunk of req) {
+      raw += chunk.toString("utf8");
+      if (raw.length > 2048) return sendError(413, "Thông tin quá dài");
+    }
+    const form = JSON.parse(raw || "{}");
+    if (typeof form.name !== "string" || !form.name.trim() || form.name.trim().length > 100)
+      return sendError(400, "Tên phiên phải có từ 1 đến 100 ký tự");
+    const room = String(form.room || "unassigned");
+    if (!officeRooms.isAgentRoom(room)) return sendError(400, "Phòng không hợp lệ");
+    const bridgeId = "chat-" + crypto.randomBytes(12).toString("hex");
+    const record = workSessions.upsert(DATA, {
+      id: bridgeId, kind: "chat", title: form.name.trim(), heartbeat: false, state: "unknown"
+    });
+    if (room !== "unassigned") ROOM_STORE.set(record.key, room);
+    res.writeHead(201, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({
+      ok: true, key: record.key, bridgeId, title: record.title,
+      room, roomLabel: officeRooms.label(room), status: "unlinked",
+      note: "Đã đăng ký alias local. Chưa có heartbeat từ cuộc trò chuyện."
+    }));
+  } catch (e) {
+    if (e instanceof SyntaxError) return sendError(400, "JSON không hợp lệ");
+    console.error("registerChatSession failed", e?.code || e?.message);
+    if (!res.headersSent) sendError(500, "Không thể lưu phiên: " + String(e?.code || "unknown"));
+  }
+}
 http.createServer((req, res) => {
   const url = new URL(req.url, "http://x");
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -651,6 +686,10 @@ http.createServer((req, res) => {
   if (url.pathname === "/auth/login") return AUTH.login(req, res).catch(() => { if (!res.headersSent) { res.writeHead(500); res.end(); } });
   if (!AUTH.authorized(req)) return AUTH.requireLogin(res);
   if (req.method === "POST" && !security.sameOrigin(req)) { res.writeHead(403); return res.end("Invalid Origin"); }
+  if (url.pathname === "/api/sessions/register") {
+    if (req.method !== "POST") { res.writeHead(405); return res.end(); }
+    return registerChatSession(req, res);
+  }
   if (url.pathname === "/api/rooms/assign") {
     if (req.method !== "POST") { res.writeHead(405); return res.end(); }
     return assignSessionRoom(req, res);
