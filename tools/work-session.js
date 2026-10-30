@@ -26,13 +26,19 @@ function report(entry) {
     status: entry.status,
     connection: entry.connection,
     lastHeartbeat: entry.lastHeartbeat,
+    task: entry.task,
+    progress: entry.progress,
+    blocker: entry.blocker,
+    detailUpdatedAt: entry.detailUpdatedAt,
     ageMinutes: entry.lastHeartbeat ? Math.round((Date.now() - entry.lastHeartbeat) / 6000) / 10 : null
   };
 }
 function usage() {
   console.log("ChatGPT Work / ChatGPT Chat local bridge. No conversation content is read.");
   console.log('  register --id project-james --name "Project - James" [--kind work|chat]');
-  console.log('  heartbeat --id project-james --state active|idle|blocked|done');
+  console.log('  heartbeat --id project-james --state active|idle|blocked|done [--task "..."] [--progress "..."] [--blocker "..."]');
+  console.log('  heartbeat --id backend-bob --state active --task "Review B04 API" --progress "Đang kiểm tra endpoint tạo đơn"');
+  console.log('  heartbeat --id backend-bob --state active --blocker ""   (clear blocker)');
   console.log('  status --id project-james [--kind work|chat]');
   console.log("Heartbeat accepts --id without --name after the first registration.");
   console.log("While a Work task is active, its agent must send a heartbeat every 2–3 minutes.");
@@ -53,8 +59,17 @@ try {
       const title = opt("name") || existing?.title;
       if (!title) throw new Error("Unknown --id: register it once using --name");
       const state = command === "heartbeat" ? (opt("state") || "active") : "unknown";
+      const detail = {};
+      for (const field of ["task", "progress", "blocker"]) {
+        if (args.includes("--" + field)) {
+          const v = opt(field);
+          if (v === null) throw new Error("Missing value after --" + field);
+          detail[field] = v;
+        }
+      }
+      if (args.includes("--clear-blocker")) detail.blocker = "";
       const record = work.upsert(cfg.dataDir, {
-        id, title, state, kind, heartbeat: command === "heartbeat"
+        id, title, state, kind, heartbeat: command === "heartbeat", ...detail
       });
       console.log(JSON.stringify({
         ok: true, signal: command === "heartbeat" ? "received" : "unlinked",

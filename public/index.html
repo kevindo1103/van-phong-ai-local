@@ -103,12 +103,23 @@ body.zoomed .bar .pill{display:none}
 .mt div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mt.idle{min-width:0;padding:3px 10px;border-color:rgba(255,255,255,.14);color:#7c8794;font-size:10px;letter-spacing:.06em}
 .ml{font-size:10px;font-weight:700;padding:2px 9px;border-radius:999px;background:rgba(5,6,8,.85);border:1px solid;white-space:nowrap;pointer-events:none}
-.card{position:fixed;left:12px;top:70px;width:min(360px,calc(100vw - 24px));z-index:12;background:rgba(8,10,13,.9);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:12px 14px;font-size:12.5px;line-height:1.5;display:none}
-.card{max-height:calc(100vh - 90px);overflow:auto}
+.card{position:fixed;left:16px;top:154px;width:min(390px,calc(100vw - 32px));z-index:18;background:rgba(9,15,24,.96);backdrop-filter:blur(16px);border:1px solid rgba(188,204,225,.24);border-radius:16px;padding:16px;font-size:12.5px;line-height:1.5;display:none;box-shadow:0 20px 48px rgba(0,0,0,.55)}
+.card{max-height:calc(100vh - 188px);overflow:auto}
 .card h4{margin:0 0 4px;display:flex;justify-content:space-between;font-size:14px}
 .card button{background:none;border:1px solid rgba(255,255,255,.15);color:#ccc;border-radius:8px;cursor:pointer;font:inherit;font-size:11px;padding:1px 8px}
 .card p{color:#d4d4d4;margin:8px 0 0}
-.card .m{color:var(--mute2);font-size:11.5px}
+.card .m{color:#aab6c6;font-size:11.5px;line-height:1.5}
+.card .info h4{font-size:14px;gap:12px;align-items:start;margin-bottom:9px}
+.work-detail{margin-top:14px;border-top:1px solid rgba(210,226,244,.16);padding-top:12px}
+.work-detail h5{margin:0 0 10px;font-size:12px;color:#e7edf8;letter-spacing:.02em}
+.work-field{padding:9px 10px;margin:8px 0;background:rgba(160,183,214,.07);border:1px solid rgba(170,190,215,.12);border-radius:9px}
+.work-field strong{display:block;font-size:10px;letter-spacing:.06em;color:#9bb1ce;text-transform:uppercase;margin-bottom:4px}
+.work-field p{margin:0;color:#edf2fa;font-size:12px;line-height:1.55;overflow-wrap:anywhere;white-space:pre-wrap}
+.work-field.blocker{background:rgba(201,76,83,.10);border-color:rgba(229,144,150,.3)}
+.work-field.blocker strong{color:#f1a6ac}
+.work-empty{font-size:11.5px;color:#b3c0d0!important;line-height:1.55}
+.work-source{margin-top:8px;color:#8c9bb0;font-size:10px;line-height:1.5}
+@media(max-width:760px){.card{top:124px;left:10px;width:min(365px,calc(100vw - 20px));max-height:calc(100vh - 160px);padding:12px}}
 @media (max-width: 760px){ .zbtn{padding:8px 9px!important;font-size:11px!important} .k{display:none} .ttl small{display:none} .clock{font-size:16px} .btn{padding:9px 11px;font-size:12px} .links a:first-child{display:none} }
 </style>
 <script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.js","three/addons/":"/vendor/three/examples/jsm/"}}</script>
@@ -659,7 +670,7 @@ for (const room of directoryRooms) {
 let directorySignature = "";
 function renderDirectory(s) {
   const members = s.agents || [];
-  const sig = focusedRoom + "|" + (selected || "") + "|" + members.map((a) => [a.key,a.name,a.room,a.roomSource,a.status,a.flag,a.connection,a.lastHeartbeat].join(":")).join("|");
+  const sig = focusedRoom + "|" + (selected || "") + "|" + members.map((a) => [a.key,a.name,a.room,a.roomSource,a.status,a.flag,a.connection,a.lastHeartbeat,a.task,a.detailUpdatedAt].join(":")).join("|");
   $("dir-summary").textContent = members.filter((a) => a.platform !== "human").length + " phiên AI";
   for (const [id, val] of dirButtons) {
     val.count.textContent = String(members.filter((a) => a.room === id).length);
@@ -682,6 +693,7 @@ function renderDirectory(s) {
       : (agent.platform === "work" || agent.platform === "chatgpt") ? OfficeRooms.label(agent.room) + " · " + badgeOf(agent)[0] + (agent.connection === "stale" ? age : "")
       : OfficeRooms.label(agent.room) + " · " + (agent.status === "active" ? "Đang làm" : agent.status === "idle" ? "Chờ" : "Tạm nghỉ");
     meta.append(h("strong", "", agent.name), h("small", "", stateLabel));
+    if (agent.task) meta.append(h("small", "dir-task", (agent.connection === "live" && agent.status === "active" ? "Đang báo: " : "Báo gần nhất: ") + agent.task));
     b.append(dot, meta);
     b.addEventListener("click", () => {
       selected = agent.key;
@@ -693,6 +705,28 @@ function renderDirectory(s) {
   }
 }
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let robotPointerDown = null;
+gl.domElement.addEventListener("pointerdown", (ev) => {
+  robotPointerDown = ev.button === 0 ? { x: ev.clientX, y: ev.clientY } : null;
+});
+gl.domElement.addEventListener("pointerup", (ev) => {
+  const start = robotPointerDown; robotPointerDown = null;
+  if (!start || zoomed || Math.hypot(ev.clientX - start.x, ev.clientY - start.y) > 7) return;
+  ndc.set(ev.clientX / innerWidth * 2 - 1, -(ev.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hits = ray.intersectObjects(Object.values(bots).map((bot) => bot.g), true);
+  for (const hit of hits) {
+    for (const [key, bot] of Object.entries(bots)) {
+      let node = hit.object;
+      while (node && node !== scene) {
+        if (node === bot.g) {
+          selected = key; showCard(); if (last) renderDirectory(last); return;
+        }
+        node = node.parent;
+      }
+    }
+  }
+});
 gl.domElement.addEventListener("pointermove", (ev) => {
   if (zoomed || ev.buttons) return;
   ndc.set(ev.clientX / innerWidth * 2 - 1, -(ev.clientY / innerHeight) * 2 + 1);
@@ -821,8 +855,33 @@ function showCard() {
   let info = c.querySelector(".info"); if (!info) { info = h("div", "info"); c.prepend(info); } info.textContent = ""; // phần thông tin vẽ lại mỗi giây, ô nhắn tin giữ nguyên
   const h4 = h("h4", "", short(a.name)); const x = h("button", "", "Đóng"); x.onclick = () => { selected = null; c.style.display = "none"; showCard(); }; h4.appendChild(x); info.appendChild(h4);
   const st = (a.platform === "work" || a.platform === "chatgpt") ? badgeOf(a)[0] : a.flag === "blocked" ? "bị chặn" : a.flag === "waiting" ? `chờ lượt DEV #${a.queuePos || ""}` : a.where === "dev" ? "đang trên DEV" : { active: "đang làm", idle: "đang rảnh", away: "nghỉ lâu", offline: "không đọc được nhật ký" }[a.status];
-  info.append(h("div", "m", `${a.role} · ${a.platform === "codex" ? "Codex" : a.platform === "claude" ? "Claude" : a.platform === "work" ? "ChatGPT Work" : a.platform === "chatgpt" ? "ChatGPT Chat" : "Người"} · ${st}${a.lastActive ? (a.platform === "work" || a.platform === "chatgpt" ? " · heartbeat " : " · hoạt động ") + ago(a.lastActive) + " trước" : ""}`));
+  const platformName = a.platform === "codex" ? "Codex" : a.platform === "claude" ? "Claude" : a.platform === "work" ? "ChatGPT Work" : a.platform === "chatgpt" ? "ChatGPT Chat" : "Người";
+  const roleLabel = a.role === platformName ? platformName : a.role + " · " + platformName;
+  info.append(h("div", "m", `${roleLabel} · ${st}${a.lastActive ? (a.platform === "work" || a.platform === "chatgpt" ? " · heartbeat " : " · hoạt động ") + ago(a.lastActive) + " trước" : ""}`));
   if (a.lastText) info.appendChild(h("p", "", "“" + a.lastText + "”"));
+  if (a.platform === "work" || a.platform === "chatgpt") {
+    const detail = h("section", "work-detail");
+    detail.appendChild(h("h5", "", "CÔNG VIỆC AGENT ĐÃ BÁO"));
+    const addField = (label, value, extraClass = "") => {
+      if (!value) return false;
+      const field = h("div", "work-field" + (extraClass ? " " + extraClass : ""));
+      field.append(h("strong", "", label), h("p", "", value));
+      detail.appendChild(field);
+      return true;
+    };
+    const taskKnown = addField("Đầu việc", a.task);
+    const progressKnown = addField("Tiến độ / đang thực hiện", a.progress);
+    const blockerKnown = addField("Vướng mắc / chờ xử lý", a.blocker, "blocker");
+    if (!taskKnown && !progressKnown && !blockerKnown) {
+      detail.appendChild(h("p", "work-empty",
+        "Phiên này mới báo trạng thái, chưa gửi mô tả công việc. Có thể bổ sung khi agent gửi heartbeat với --task và --progress."));
+    }
+    detail.appendChild(h("div", "work-source",
+      "Nguồn: báo cáo do agent chủ động gửi qua bridge local" +
+      (a.detailUpdatedAt ? " · cập nhật " + ago(a.detailUpdatedAt) + " trước" : " · chưa có thời điểm báo nội dung") +
+      ". Heartbeat xác nhận kết nối, không xác minh chất lượng hay kết quả công việc."));
+    info.appendChild(detail);
+  }
   if (!a.ceo) {
     info.appendChild(h("div", "m", "Phòng: " + OfficeRooms.label(a.room) +
       " · " + (a.roomSource === "manual" ? "Gán thủ công" : a.roomSource === "prefix" ? "Theo prefix" :
