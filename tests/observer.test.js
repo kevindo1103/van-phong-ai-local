@@ -31,10 +31,10 @@ function fixture() {
     {number:1940,title:"PR duplicates",state:"open",pull_request:{url:"https://api.github.com/repos/sample-org/sample-repo/pulls/1940"}}
   ];
   const runs={workflow_runs:[
-    {id:101,display_title:"B04 tests",name:"PR test",status:"completed",conclusion:"success",
+    {id:41030408871,display_title:"B04 tests",name:"PR test",status:"completed",conclusion:"success",
       head_branch:"codex/b04-integration-20261030",updated_at:"2026-10-30T09:05:00Z",
       html_url:"https://github.com/sample-org/sample-repo/actions/runs/101"},
-    {id:102,display_title:"Backend tests",name:"pytest",status:"in_progress",
+    {id:41035656118,display_title:"Backend tests",name:"pytest",status:"in_progress",
       head_branch:"branch-1941",updated_at:"2026-10-30T09:30:00Z",
       html_url:"https://github.com/sample-org/sample-repo/actions/runs/102"}
   ]};
@@ -65,6 +65,8 @@ test("observer reads recent PRs, Issues (excluding PRs), CI by exact branch",asy
   assert.equal(state.runs.length,2);
   assert.equal(state.prs.find(x=>x.number===1940).ci.status,"success");
   assert.equal(state.prs.find(x=>x.number===1941).ci.status,"running");
+  assert.equal(state.prs.find(x=>x.number===1941).runs[0].id,41035656118);
+  assert.equal(state.prs.find(x=>x.number===1940).runs[0].id,41030408871);
   assert.ok(!JSON.stringify(state).includes("ownerId"));
   assert.equal(calls.length,3);
   assert.ok(calls.every(s=>s.startsWith("repos/"+REPO+"/")));
