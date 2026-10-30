@@ -15,6 +15,25 @@ Mở **http://127.0.0.1:7788**. Khi cần dừng, nhấn Ctrl+C trong cửa sổ
 
 Script chỉ tạo `config.json` và `data/` nếu chưa tồn tại; **không thêm gì vào AGENTS.md hoặc CLAUDE.md của ERP**. Nếu máy không có `D:\BINGXUE_ERP`, script khởi tạo với mọi dự án; có thể chỉnh lại `projects` trong config.
 
+## Phòng làm việc và phân quyền theo prefix
+
+Mỗi vai có phòng 3D/2D riêng; Claude Code và Codex dùng cùng quy tắc, không phân phòng theo nền tảng:
+
+| Prefix đầu tên phiên | Phòng / chủ sở hữu |
+|---|---|
+| `CEO`, hoặc tên mở đầu `Kyle` | CEO · Kyle |
+| `Backend` / `Bob` | Backend · Bob |
+| `Frontend` / `Dave` | Frontend · Dave |
+| `Product` / `Stu` | Product · Stu |
+| `QC`, `Infra` / `Gru` | QC & Infra · Gru |
+| `PM` / `James` | PM · James |
+| Không rõ tên/prefix | Khu vực chung · Chưa có tên |
+
+Ví dụ: `Infra: Fix VPS61`, `[QC] Smoke test`, `Backend - B04 API`.
+Tên chỉ nhắc từ Backend/QC/Infra ở giữa câu (không có prefix) **không được** tự đoán phòng.
+
+**Gán thủ công:** nhấn vào session trong văn phòng 3D hoặc sơ đồ 2D rồi chọn phòng. Mapping được lưu tại `data/session-rooms.json` trên ThinkPad, không đẩy lên GitHub. Chọn **Tự phân phòng lại theo prefix** trong 3D để xóa gán thủ công. Các session mang trạng thái `DEV` hoặc `chờ DEV` có thể tạm di chuyển đến khu DEV nhưng phòng sở hữu vẫn giữ nguyên.
+
 ## An toàn mặc định
 
 - `host: "127.0.0.1"`: không lắng nghe từ LAN. Khách từ xa bị từ chối nếu không cấu hình khóa xem.

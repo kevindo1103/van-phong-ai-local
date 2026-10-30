@@ -9,6 +9,8 @@ const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
 const security = require("./lib/security");
+const officeRooms = require("./public/rooms");
+const { createStore: createRoomStore } = require("./lib/session-rooms");
 const { execFile } = require("child_process");
 const perf = require("./lib/perf");
 const chat = require("./lib/chat");
@@ -21,6 +23,7 @@ const ROOT = __dirname;
 const CFG = loadConfig(ROOT);
 if (!CFG) { console.error("Chưa có config.json. Chạy trước: npm run setup"); process.exit(1); }
 const DATA = CFG.dataDir;
+const ROOM_STORE = createRoomStore(DATA);
 const PORT = Number(process.env.PORT || CFG.port);
 const KEEP = CFG.keepHours * 3600000;
 const FIRST_READ = 8_000_000; // lần đầu chỉ đọc 8 MB cuối mỗi nhật ký
@@ -80,26 +83,37 @@ function blank(a) { return { ...a, file: null, size: 0, offset: 0, mtime: 0, las
 const ceo = blank({ key: "ceo", name: CFG.ownerName, role: "Chủ văn phòng", platform: "human", room: "ceo", journal: "none:ceo", ceo: true, aliases: [CFG.ownerName, "CEO", "Giám đốc"] });
 agents.push(ceo); byKey.ceo = ceo;
 function override(name, id) { return (CFG.staff || []).find((s) => s.match && (String(name).toLowerCase().includes(String(s.match).toLowerCase()) || String(id).startsWith(s.match))); }
-function roomOf(name, platform, o) {
-  if (o && o.room) return o.room;
-  if (/quản lý|quan ly|manager|\blead\b|trưởng|truong nhom|giám sát|\bpm\b/i.test(name)) return "manager";
-  if (/điều phối|dieu phoi|coordinat|trợ lý|tro ly|assistant|dispatch/i.test(name)) return "coord";
-  if (/review|duyệt|duyet|kiểm tra|kiem tra|\btest|\bqa\b|\bg1\b/i.test(name)) return "g1";
-  return platform;
+// Priority: persisted per-session override > configured staff override > title role prefix
+// (Backend, Frontend, Product, QC, PM, CEO) > owner name > unassigned.
+function roomInfo(rawName, displayedName, o) {
+  if (o && officeRooms.isAgentRoom(o.room)) return { room: o.room, source: "config" };
+  const byRole = officeRooms.rolePrefixRoom(rawName) || officeRooms.rolePrefixRoom(displayedName);
+  if (byRole) return { room: byRole, source: "prefix" };
+  const byName = officeRooms.ownerRoomFromName(displayedName) || officeRooms.ownerRoomFromName(rawName);
+  return byName ? { room: byName, source: "owner" } : { room: "unassigned", source: "unassigned" };
+}
+function effectiveRoom(a) {
+  const manual = ROOM_STORE.get(a.key);
+  if (manual) return { room: manual, source: "manual" };
+  const o = override(a.sourceTitle || a.name, a.id) || override(a.name, a.id);
+  return roomInfo(a.sourceTitle || a.name, a.name, o);
 }
 function addAgent(platform, id, file, name, createdAt) {
   const key = (platform === "codex" ? "x-" : "c-") + id.slice(0, 8);
   if (byKey[key]) return byKey[key];
-  const o = override(name, id), nm = clip(mask((o && o.name) || name), 40);
+  const o = override(name, id), nm = clip(mask((o && o.name) || name), 40), assigned = roomInfo(name, nm, o);
   const a = blank({ key, id, platform, journal: platform + ":" + id, autoName: !(o && o.name), name: nm, aliases: [nm],
-    role: (o && o.role) || (platform === "codex" ? "Kỹ sư Codex" : "Kỹ sư Claude Code"), room: roomOf((o && o.name) || name, platform, o), auto: true, createdAt: createdAt || now() });
+    role: (o && o.role) || (platform === "codex" ? "Kỹ sư Codex" : "Kỹ sư Claude Code"),
+    room: assigned.room, roomSource: assigned.source, sourceTitle: name, auto: true, createdAt: createdAt || now() });
   a.file = file;
   agents.push(a); byKey[key] = a; return a;
 }
 function setName(a, name) {
   if (!a.autoName || !name) return;
+  a.sourceTitle = name;
   const n = clip(mask(name), 40); if (n === a.name) return;
-  a.name = n; a.aliases = [n]; a.room = roomOf(n, a.platform, override(n, a.id));
+  a.name = n; a.aliases = [n];
+  const info = effectiveRoom(a); a.room = info.room; a.roomSource = info.source;
 }
 
 // Sổ đăng ký phiên Claude đang mở (~/.claude/sessions/<pid>.json): phiên nào đang chạy/rảnh, tên phiên, mã giao diện local_….
@@ -488,6 +502,8 @@ function statusOf(a, t) {
 function snapshot() {
   const t = now(), nowMin = Math.floor(t / 60000);
   const out = agents.map((a) => {
+    const info = a.ceo ? { room: "ceo", source: "human" } : effectiveRoom(a);
+    a.room = info.room; a.roomSource = info.source;
     let status = statusOf(a, t), where = a.room, flag = null;
     if (dev.holder === a.key) { where = "dev"; status = "active"; }
     const qi = (dev.queue || []).findIndex((q) => q.agent === a.key);
@@ -495,7 +511,7 @@ function snapshot() {
     if (!a.ceo && /\[CHẶN\]|bị chặn|đang chặn|\bblocked\b/i.test(lt) && status !== "active" && status !== "away" && t - a.lastTextAt < 3 * 3600000) flag = "blocked";
     else if (qi >= 0 && where !== "dev") { flag = "waiting"; where = "g1q"; }
     const L = !a.ceo && live.get(a.id);
-    return { key: a.key, name: a.name, role: a.role, platform: a.platform, room: a.room, where, status, flag, session: a.ceo ? null : a.id.slice(0, 8), host: L && L.host ? L.host.slice(0, 8) : null,
+    return { key: a.key, name: a.name, role: a.role, platform: a.platform, room: a.room, roomSource: a.roomSource, roomLabel: officeRooms.label(a.room), where, status, flag, session: a.ceo ? null : a.id.slice(0, 8), host: L && L.host ? L.host.slice(0, 8) : null,
       lastText: CFG.showSessionContent ? lt : "", lastTextAt: a.ceo ? a.ceoLastAt : a.lastTextAt, queuePos: qi >= 0 ? qi + 1 : null, lastActive: a.ceo ? a.ceoLastAt : a.mtime, sub: a.subActive || 0,
       hasJournal: !!(a.file || a.ceo), isNew: !a.ceo && t - a.createdAt < 3600000, createdAt: a.ceo ? null : a.createdAt, hist: Array.from({ length: 60 }, (_, i) => (a.mins.has(nowMin - 59 + i) ? 1 : 0)) };
   });
@@ -583,6 +599,39 @@ function sse(req, res, set, first) {
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive", "X-Accel-Buffering": "no" });
   res.write("data: " + JSON.stringify(first) + "\n\n"); set.add(res); req.on("close", () => set.delete(res));
 }
+// A user may explicitly assign a session. This never renames or modifies the agent.
+async function assignSessionRoom(req, res) {
+  let raw = "";
+  try {
+    for await (const chunk of req) {
+      raw += chunk.toString("utf8");
+      if (raw.length > 2048) {
+        res.writeHead(413, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+        return res.end(JSON.stringify({ error: "Yêu cầu quá dài" }));
+      }
+    }
+    const body = JSON.parse(raw || "{}");
+    const key = String(body.session || ""), room = String(body.room || "");
+    const agent = byKey[key];
+    if (!agent || agent.ceo) {
+      res.writeHead(404, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      return res.end(JSON.stringify({ error: "Không tìm thấy session" }));
+    }
+    if (room !== "auto" && !officeRooms.isAgentRoom(room)) {
+      res.writeHead(400, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      return res.end(JSON.stringify({ error: "Phòng không hợp lệ" }));
+    }
+    ROOM_STORE.set(key, room);
+    const info = effectiveRoom(agent); agent.room = info.room; agent.roomSource = info.source;
+    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ ok: true, session: key, room: info.room, roomLabel: officeRooms.label(info.room), source: info.source }));
+  } catch {
+    if (!res.headersSent) {
+      res.writeHead(400, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify({ error: "Không thể lưu thay đổi" }));
+    }
+  }
+}
 http.createServer((req, res) => {
   const url = new URL(req.url, "http://x");
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -591,6 +640,10 @@ http.createServer((req, res) => {
   if (url.pathname === "/auth/login") return AUTH.login(req, res).catch(() => { if (!res.headersSent) { res.writeHead(500); res.end(); } });
   if (!AUTH.authorized(req)) return AUTH.requireLogin(res);
   if (req.method === "POST" && !security.sameOrigin(req)) { res.writeHead(403); return res.end("Invalid Origin"); }
+  if (url.pathname === "/api/rooms/assign") {
+    if (req.method !== "POST") { res.writeHead(405); return res.end(); }
+    return assignSessionRoom(req, res);
+  }
   if (url.pathname === "/events") return sse(req, res, clients, snapshot());
   if (url.pathname === "/state") return json(res, snapshot());
   if (url.pathname === "/perf-events") return sse(req, res, perfClients, perfNow());
