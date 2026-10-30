@@ -1,4 +1,11 @@
-# Văn phòng ảo 3D cho đội AI
+# Văn phòng AI Local (Windows / Claude Code / Codex)
+
+**Bản fork cho chạy tại ThinkPad:** [README-LOCAL.md](README-LOCAL.md) — bảo mật mặc định, khóa DEV nguyên tử, test/CI, Three.js chạy offline. Bản gốc: [vinaichatbot-rgb/van-phong-ao-3d](https://github.com/vinaichatbot-rgb/van-phong-ao-3d).
+
+**Quan trọng:** chưa tự sửa AGENTS.md/CLAUDE.md của dự án Bingxue; giao diện không tự thực thi task. Nội dung phiên được ẩn và chấm điểm A/B/C/D bị tắt mặc định.
+
+---
+
 
 Biến các phiên **Claude Code** và **Codex** trên máy bạn thành một công ty AI 3D sống động, kèm đủ bộ sổ điều phối như một đội thật: việc ưu tiên, gói việc, hòm thư, lượt DEV, sổ "Cần anh", nội quy, đội ngũ, bài học, đánh giá nhân sự và tiền AI.
 
@@ -8,7 +15,7 @@ Mỗi phiên là một nhân viên robot có bàn riêng:
 - bạn giao việc thì cả nhóm ra phòng họp;
 - ai đang giữ môi trường DEV thì đứng giữa Phòng DEV, ai đang chờ thì xếp hàng.
 
-> **Chỉ đọc, chạy tại máy bạn.** Văn phòng chỉ đọc nhật ký mà Claude Code và Codex vốn tự ghi (`~/.claude`, `~/.codex`) và sổ của đội trong thư mục `data/`. Nó không gửi dữ liệu đi đâu và không cần khóa API. Mọi chuỗi giống khóa đều được che trước khi hiện. Kho không dùng thư viện ngoài nào, nên không cần `npm install`.
+> **Chỉ đọc, chạy tại máy bạn.** Văn phòng chỉ đọc nhật ký mà Claude Code và Codex vốn tự ghi (`~/.claude`, `~/.codex`) và sổ của đội trong thư mục `data/`. Nó không gửi dữ liệu đi đâu và không cần khóa API. Mọi chuỗi giống khóa đều được che trước khi hiện. Server dùng Node.js chuẩn; giao diện 3D dùng Three.js được cài từ `npm ci` và phục vụ trên localhost để hoạt động offline.
 
 ---
 
@@ -16,7 +23,7 @@ Mỗi phiên là một nhân viên robot có bàn riêng:
 
 Mở Claude Code hoặc Codex **trong thư mục dự án của bạn** và gõ:
 
-> Cài văn phòng ảo cho dự án này theo hướng dẫn ở https://github.com/vinaichatbot-rgb/van-phong-ao-3d (đọc file HUONG-DAN-CHO-AGENT.md)
+> Cài văn phòng ảo cho dự án này theo hướng dẫn ở https://github.com/kevindo1103/van-phong-ai-local (đọc file HUONG-DAN-CHO-AGENT.md)
 
 Agent sẽ tự làm các bước sau. Những bước có thay đổi bên ngoài thì nó sẽ hỏi bạn trước:
 
@@ -33,8 +40,9 @@ Agent sẽ tự làm các bước sau. Những bước có thay đổi bên ngo�
 Cần **Node.js 18+** (https://nodejs.org), cùng với **Claude Code** hoặc **Codex** đã dùng trên máy.
 
 ```bash
-git clone https://github.com/vinaichatbot-rgb/van-phong-ao-3d.git
-cd van-phong-ao-3d
+git clone https://github.com/kevindo1103/van-phong-ai-local.git
+cd van-phong-ai-local
+npm ci
 npm run setup
 npm start
 ```
@@ -113,7 +121,7 @@ Luật đội để dán vào dự án nằm ở `data/DOAN-CHEN-VAO-AGENTS.md`,
 | `Chưa có config.json` | Chạy `npm run setup` trước. |
 | Văn phòng trống | Mở phiên AI **trong đúng thư mục dự án** đã chọn; kiểm `projects` (dùng dấu `/`). |
 | `EADDRINUSE` | Cổng 7788 đang bận: đổi `port`. |
-| Màn 3D đen | Trình duyệt chặn WebGL hoặc máy không tải được three.js. Thử Chrome/Edge mới, hoặc dùng Sơ đồ 2D. |
+| Màn 3D đen | Trình duyệt chặn WebGL hoặc chưa chạy `npm ci` hoặc trình duyệt không hỗ trợ WebGL. Thử Chrome/Edge mới, hoặc dùng Sơ đồ 2D. |
 | Hòm thư không ai đọc | Phiên AI chưa có luật đội: dán `data/DOAN-CHEN-VAO-AGENTS.md` vào `AGENTS.md` / `CLAUDE.md`, và đặt tên phiên trùng tên vai. |
 
 ## Cấu trúc mã

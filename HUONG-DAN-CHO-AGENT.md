@@ -28,11 +28,12 @@ Kiểm tra có nhật ký để đọc:
 ## 2. Tải mã về (đặt ngoài thư mục dự án)
 
 ```bash
-git clone https://github.com/vinaichatbot-rgb/van-phong-ao-3d.git ~/van-phong-ao-3d
+git clone https://github.com/kevindo1103/van-phong-ai-local.git ~/van-phong-ao-3d
 cd ~/van-phong-ao-3d
+npm ci
 ```
 
-Trên Windows nên dùng một đường dẫn không có dấu, ví dụ `C:/van-phong-ao-3d`. Kho này **không cần `npm install`**, vì không dùng thư viện ngoài nào.
+Trên Windows nên dùng một đường dẫn không có dấu, ví dụ `C:/van-phong-ao-3d`. Cài đúng bản Three.js đã khóa bằng **`npm ci`** để giao diện 3D không cần CDN khi chạy. Server vẫn dùng API Node.js chuẩn.
 
 ## 3. Cài đặt không hỏi
 

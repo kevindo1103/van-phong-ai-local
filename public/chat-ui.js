@@ -20,8 +20,8 @@
 .chat .s-ok{color:#7ccf9b}.chat .s-wait{color:#ecc970}.chat .s-bad{color:#e8a39b}`;
   const st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
   const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
-  const getPin = () => { try { return localStorage.getItem("vp-pin") || ""; } catch { return ""; } };
-  const setPin = (p) => { try { localStorage.setItem("vp-pin", p); } catch {} };
+  const getPin = () => { try { return sessionStorage.getItem("vp-pin") || ""; } catch { return ""; } };
+  const setPin = (p) => { try { sessionStorage.setItem("vp-pin", p); } catch {} };
   let status = null, statusAt = 0;
   async function loadStatus(force, attempt) {
     if (!force && status && Date.now() - statusAt < 3000) return status;

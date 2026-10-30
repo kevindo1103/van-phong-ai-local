@@ -6,6 +6,10 @@
   "host": "127.0.0.1",
   "projects": ["C:/Users/ban/Documents/du-an-cua-ban"],
   "keepHours": 24,
+  "showSessionContent": false,
+  "showHeuristicGrades": false,
+  "observerRepo": "",
+  "observerRefreshSeconds": 120,
   "accessKey": "",
   "staff": [
     { "match": "quản lý", "role": "Quản lý dự án", "room": "lead" },

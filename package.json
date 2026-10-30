@@ -1,15 +1,20 @@
 {
   "name": "van-phong-ao-3d",
   "version": "1.0.0",
-  "description": "Văn phòng ảo 3D theo dõi đội AI (Claude Code + Codex) trên máy của bạn — chỉ đọc, chạy tại chỗ, không cần cài thêm thư viện.",
+  "description": "Văn phòng AI Local, Windows-first, bảo vệ dữ liệu và điều phối DEV an toàn.",
   "main": "server.js",
   "scripts": {
     "setup": "node setup.js",
     "start": "node server.js",
-    "vp": "node tools/vp.js"
+    "vp": "node tools/vp.js",
+    "test": "node --test",
+    "check": "node --check server.js && node --check setup.js && node --check tools/vp.js && node --check lib/security.js && node --check lib/chat.js && node --check lib/perf.js && node --check lib/config.js"
   },
   "engines": {
     "node": ">=18"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "three": "0.160.0"
+  }
 }

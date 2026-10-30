@@ -8,6 +8,14 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
+const security = require("./lib/security");
+const officeRooms = require("./public/rooms");
+const workSessions = require("./lib/work-sessions");
+const { createObserver } = require("./lib/observer");
+const claudeObserver = require("./lib/observer-local");
+const { createLinks } = require("./lib/observer-links");
+const { suggestLinks } = require("./lib/observer-suggestions");
+const { createStore: createRoomStore } = require("./lib/session-rooms");
 const { execFile } = require("child_process");
 const perf = require("./lib/perf");
 const chat = require("./lib/chat");
@@ -20,6 +28,10 @@ const ROOT = __dirname;
 const CFG = loadConfig(ROOT);
 if (!CFG) { console.error("Chưa có config.json. Chạy trước: npm run setup"); process.exit(1); }
 const DATA = CFG.dataDir;
+const ROOM_STORE = createRoomStore(DATA);
+const DELIVERY_LINKS = createLinks(DATA);
+const OBSERVER = createObserver({ repo: CFG.observerRepo, refreshMs: Number(CFG.observerRefreshSeconds || 120) * 1000 });
+OBSERVER.start();
 const PORT = Number(process.env.PORT || CFG.port);
 const KEEP = CFG.keepHours * 3600000;
 const FIRST_READ = 8_000_000; // lần đầu chỉ đọc 8 MB cuối mỗi nhật ký
@@ -79,26 +91,37 @@ function blank(a) { return { ...a, file: null, size: 0, offset: 0, mtime: 0, las
 const ceo = blank({ key: "ceo", name: CFG.ownerName, role: "Chủ văn phòng", platform: "human", room: "ceo", journal: "none:ceo", ceo: true, aliases: [CFG.ownerName, "CEO", "Giám đốc"] });
 agents.push(ceo); byKey.ceo = ceo;
 function override(name, id) { return (CFG.staff || []).find((s) => s.match && (String(name).toLowerCase().includes(String(s.match).toLowerCase()) || String(id).startsWith(s.match))); }
-function roomOf(name, platform, o) {
-  if (o && o.room) return o.room;
-  if (/quản lý|quan ly|manager|\blead\b|trưởng|truong nhom|giám sát|\bpm\b/i.test(name)) return "manager";
-  if (/điều phối|dieu phoi|coordinat|trợ lý|tro ly|assistant|dispatch/i.test(name)) return "coord";
-  if (/review|duyệt|duyet|kiểm tra|kiem tra|\btest|\bqa\b|\bg1\b/i.test(name)) return "g1";
-  return platform;
+// Priority: persisted per-session override > configured staff override > title role prefix
+// (Backend, Frontend, Product, QC, PM, CEO) > owner name > unassigned.
+function roomInfo(rawName, displayedName, o) {
+  if (o && officeRooms.isAgentRoom(o.room)) return { room: o.room, source: "config" };
+  const byRole = officeRooms.rolePrefixRoom(rawName) || officeRooms.rolePrefixRoom(displayedName);
+  if (byRole) return { room: byRole, source: "prefix" };
+  const byName = officeRooms.ownerRoomFromName(displayedName) || officeRooms.ownerRoomFromName(rawName);
+  return byName ? { room: byName, source: "owner" } : { room: "unassigned", source: "unassigned" };
+}
+function effectiveRoom(a) {
+  const manual = ROOM_STORE.get(a.key);
+  if (manual) return { room: manual, source: "manual" };
+  const o = override(a.sourceTitle || a.name, a.id) || override(a.name, a.id);
+  return roomInfo(a.sourceTitle || a.name, a.name, o);
 }
 function addAgent(platform, id, file, name, createdAt) {
   const key = (platform === "codex" ? "x-" : "c-") + id.slice(0, 8);
   if (byKey[key]) return byKey[key];
-  const o = override(name, id), nm = clip(mask((o && o.name) || name), 40);
+  const o = override(name, id), nm = clip(mask((o && o.name) || name), 40), assigned = roomInfo(name, nm, o);
   const a = blank({ key, id, platform, journal: platform + ":" + id, autoName: !(o && o.name), name: nm, aliases: [nm],
-    role: (o && o.role) || (platform === "codex" ? "Kỹ sư Codex" : "Kỹ sư Claude Code"), room: roomOf((o && o.name) || name, platform, o), auto: true, createdAt: createdAt || now() });
+    role: (o && o.role) || (platform === "codex" ? "Kỹ sư Codex" : "Kỹ sư Claude Code"),
+    room: assigned.room, roomSource: assigned.source, sourceTitle: name, auto: true, createdAt: createdAt || now() });
   a.file = file;
   agents.push(a); byKey[key] = a; return a;
 }
 function setName(a, name) {
   if (!a.autoName || !name) return;
+  a.sourceTitle = name;
   const n = clip(mask(name), 40); if (n === a.name) return;
-  a.name = n; a.aliases = [n]; a.room = roomOf(n, a.platform, override(n, a.id));
+  a.name = n; a.aliases = [n];
+  const info = effectiveRoom(a); a.room = info.room; a.roomSource = info.source;
 }
 
 // Sổ đăng ký phiên Claude đang mở (~/.claude/sessions/<pid>.json): phiên nào đang chạy/rảnh, tên phiên, mã giao diện local_….
@@ -476,6 +499,56 @@ function moneyOf(week, t) {
   return { cap: CFG.aiCapUsd, days, today: today.reverse(), source: "uoc-tinh", note: "ước tính theo giá API trong config.json + tiền lượt DEV tự khai" };
 }
 
+function enrichAgentObservations(out, observerState, time) {
+  for (const a of out) {
+    const external = a.platform === "work" || a.platform === "chatgpt";
+    const signal = external ? a.lastHeartbeat : a.lastActive;
+    const recentSignal = signal && time - signal < (external ? 5 * 60000 : 90000);
+    const hook = a.platform === "claude" ? claudeObserver.read(DATA, a.key, time) : null;
+    // Local log activity is only a recent filesystem event, not proof of
+    // model inference. Claude lifecycle hooks are stronger when fresh.
+    const activity = a.platform === "human" ? "not-applicable" :
+      external ? a.connection === "live" ? "recent-signal" : a.connection === "unlinked" ? "unlinked" : "stale" :
+      hook?.fresh ? hook.lastStage : recentSignal ? "recent-log" : signal ? "stale" : "unknown";
+    if (hook?.fresh) {
+      if (hook.lastStage === "working" || hook.lastStage === "tool-running") a.status = "active";
+      else if (hook.lastStage === "idle" || hook.lastStage === "approval-wait") a.status = "idle";
+      else if (hook.lastStage === "ended") a.status = "away";
+    }
+    const links = DELIVERY_LINKS.get(a.key);
+    const linkedPrs = links.prs.map(n=>observerState.prs.find(p=>p.number===n)).filter(Boolean);
+    const linkedIssues = links.issues.map(n=>observerState.issues.find(issue=>issue.number===n)).filter(Boolean);
+    const suggestions = suggestLinks(a,observerState,links);
+    a.observation = {
+      activity: {
+        state: activity, source: hook?.fresh ? "claude-hook" : external ? "agent-heartbeat" :
+          a.platform === "human" ? "none" : "local-journal",
+        observedAt: hook?.fresh ? hook.observedAt : signal || null,
+        evidence: hook?.fresh ? hook.evidence : external ? "Heartbeat do phiên chủ động gửi" :
+          a.platform === "human" ? "Không giám sát liveness cho CEO" :
+          "Thời gian cập nhật nhật ký local (không xác nhận suy luận)"
+      },
+      work: {
+        state: external ? (a.reportedState || "unknown") : "unknown",
+        task: external ? a.task || "" : "",
+        progress: external ? a.progress || "" : "",
+        blocker: external ? a.blocker || "" : "",
+        observedAt: external ? a.detailUpdatedAt || null : null,
+        source: external && a.detailUpdatedAt ? "agent-reported" : "unreported"
+      },
+      delivery: {
+        links, prs:linkedPrs, issues:linkedIssues, suggestions,
+        missingPrNumbers:links.prs.filter(n=>!linkedPrs.some(p=>p.number===n)),
+        missingIssueNumbers:links.issues.filter(n=>!linkedIssues.some(issue=>issue.number===n)),
+        // Backward compatibility for older 3D clients while they reload.
+        prNumber:links.prs[0]||null, pr:linkedPrs[0]||null,
+        status:links.prs.length||links.issues.length?"linked":"unlinked",
+        source:"github-read-only + user-confirmed links",
+        checkedAt:observerState.checkedAt
+      }
+    };
+  }
+}
 // ---------- ảnh chụp trạng thái ----------
 function statusOf(a, t) {
   if (a.ceo) return a.ceoLastAt && t - a.ceoLastAt < 15 * 60000 ? "active" : "away";
@@ -487,6 +560,8 @@ function statusOf(a, t) {
 function snapshot() {
   const t = now(), nowMin = Math.floor(t / 60000);
   const out = agents.map((a) => {
+    const info = a.ceo ? { room: "ceo", source: "human" } : effectiveRoom(a);
+    a.room = info.room; a.roomSource = info.source;
     let status = statusOf(a, t), where = a.room, flag = null;
     if (dev.holder === a.key) { where = "dev"; status = "active"; }
     const qi = (dev.queue || []).findIndex((q) => q.agent === a.key);
@@ -494,10 +569,22 @@ function snapshot() {
     if (!a.ceo && /\[CHẶN\]|bị chặn|đang chặn|\bblocked\b/i.test(lt) && status !== "active" && status !== "away" && t - a.lastTextAt < 3 * 3600000) flag = "blocked";
     else if (qi >= 0 && where !== "dev") { flag = "waiting"; where = "g1q"; }
     const L = !a.ceo && live.get(a.id);
-    return { key: a.key, name: a.name, role: a.role, platform: a.platform, room: a.room, where, status, flag, session: a.ceo ? null : a.id.slice(0, 8), host: L && L.host ? L.host.slice(0, 8) : null,
-      lastText: lt, lastTextAt: a.ceo ? a.ceoLastAt : a.lastTextAt, queuePos: qi >= 0 ? qi + 1 : null, lastActive: a.ceo ? a.ceoLastAt : a.mtime, sub: a.subActive || 0,
+    return { key: a.key, name: a.name, role: a.role, platform: a.platform, room: a.room, roomSource: a.roomSource, roomLabel: officeRooms.label(a.room), where, status, flag, session: a.ceo ? null : a.id.slice(0, 8), host: L && L.host ? L.host.slice(0, 8) : null,
+      lastText: CFG.showSessionContent ? lt : "", lastTextAt: a.ceo ? a.ceoLastAt : a.lastTextAt, queuePos: qi >= 0 ? qi + 1 : null, lastActive: a.ceo ? a.ceoLastAt : a.mtime, sub: a.subActive || 0,
       hasJournal: !!(a.file || a.ceo), isNew: !a.ceo && t - a.createdAt < 3600000, createdAt: a.ceo ? null : a.createdAt, hist: Array.from({ length: 60 }, (_, i) => (a.mins.has(nowMin - 59 + i) ? 1 : 0)) };
   });
+  // Work conversations are opt-in: only metadata registered locally is visible.
+  // No "active" status is inferred from Recents; a recent explicit heartbeat is required.
+  for (const external of workSessions.list(DATA, t)) {
+    const manual = ROOM_STORE.get(external.key);
+    if (manual) {
+      external.room = manual; external.where = manual;
+      external.roomSource = "manual"; external.roomLabel = officeRooms.label(manual);
+    }
+    out.push(external);
+  }
+  const observerState = OBSERVER.read();
+  enrichAgentObservations(out, observerState, t);
   const recent = events.filter((e) => t - e.t < 24 * 3600000);
   const alerts = [];
   if (dev.idleSince && t - dev.idleSince > 15 * 60000 && dev.queue.length) alerts.push({ level: "warn", text: `DEV trống ${Math.round((t - dev.idleSince) / 60000)} phút, hàng chờ còn ${dev.queue.length} gói` });
@@ -529,7 +616,14 @@ function snapshot() {
   if (ht.tong && ht.tong.nhac2) alerts.push({ level: "bad", text: `Hòm thư: ${ht.tong.nhac2} tin đã đọc lại ≥ 2 lần mà chưa xong` });
   const { weekRows, ...devOut } = dev;
   return { now: t, title: CFG.title, subtitle: CFG.subtitle, ownerName: CFG.ownerName, tinKet: { at: t, items: [] }, agents: out, dev: { ...devOut, lastRows: dev.lastRows.slice(-25), match },
-    turns, team, tasks: taskView, sys, events: recent.slice(-300), alerts, asks: ceoAsks(out, t), money: moneyOf(week, t) };
+    turns, team, tasks: taskView, sys, events: (CFG.showSessionContent ? recent : recent.map((e) => ({ ...e, title: "Nội dung phiên đã ẩn", body: "" }))).slice(-300), alerts,
+    asks: ceoAsks(out, t).map((a) => (CFG.showSessionContent || a.kind === "so" ? a : { ...a, text: "Có yêu cầu từ phiên AI (nội dung đã ẩn)" })),
+    observer: { repo: observerState.repo, status: observerState.status,
+      checkedAt: observerState.checkedAt, attemptAt: observerState.attemptAt,
+      error: observerState.error, refreshSeconds: observerState.refreshSeconds,
+      prCount: observerState.prs.filter(p=>p.state==="open").length,
+      issueCount: observerState.issues.filter(i=>i.state==="open").length,
+      windowPrCount:observerState.prs.length, windowIssueCount:observerState.issues.length }, money: moneyOf(week, t) };
 }
 
 // ---------- vòng lặp ----------
@@ -569,34 +663,162 @@ function docsNow() {
 // ---------- máy chủ web ----------
 const clients = new Set(), perfClients = new Set();
 let perfCache = null;
-const perfNow = () => { if (!perfCache || now() - perfCache.at > 1500) perfCache = { at: now(), data: perf.compute(agents.filter((a) => !a.ceo), snapshot().agents, events, dev.weekRows || []) }; return perfCache.data; };
+const perfNow = () => { if (!perfCache || now() - perfCache.at > 1500) perfCache = { at: now(), data: perf.compute(agents.filter((a) => !a.ceo), snapshot().agents, events, dev.weekRows || [], { showHeuristicGrades: CFG.showHeuristicGrades }) }; return perfCache.data; };
 setInterval(() => { if (!clients.size) return; const d = "data: " + JSON.stringify(snapshot()) + "\n\n"; for (const r of clients) r.write(d); }, 1000);
 setInterval(() => { if (!perfClients.size) return; const d = "data: " + JSON.stringify(perfNow()) + "\n\n"; for (const r of perfClients) r.write(d); }, 2000);
 
-// Khóa xem (tùy chọn): đặt "accessKey" trong config.json thì phải nhập khóa một lần mới xem được (nên bật khi mở ra Internet).
-const KEY = String(CFG.accessKey || "");
-const keyHash = KEY ? crypto.createHash("sha256").update(KEY).digest("hex").slice(0, 32) : "";
-const sameKey = (x) => { const a = Buffer.from(String(x || "")), b = Buffer.from(KEY); return a.length === b.length && crypto.timingSafeEqual(a, b); };
-function authed(req, url) {
-  if (!KEY) return true;
-  const ck = (req.headers.cookie || "").split(/;\s*/).find((c) => c.startsWith("vpk="));
-  return (ck && ck.slice(4) === keyHash) || sameKey(url.searchParams.get("key"));
-}
-const LOGIN = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Văn phòng AI</title>
-<body style="margin:0;height:100vh;display:grid;place-items:center;background:#05070a;color:#eee;font-family:system-ui,sans-serif">
-<form method="get" style="display:grid;gap:10px;width:min(320px,90vw)"><b style="font-size:18px">Nhập khóa xem văn phòng</b>
-<input name="key" type="password" autofocus style="padding:12px;border-radius:10px;border:1px solid #333;background:#111;color:#eee;font-size:16px">
-<button style="padding:12px;border-radius:10px;border:0;background:#ecc970;font-weight:700;font-size:15px">Vào xem</button></form></body>`;
+// Local-only by default. Remote viewing requires accessKey and POST login (never URL query).
+const AUTH = security.createAuth(CFG.accessKey);
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon" };
 const json = (res, body) => { res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-cache" }); res.end(typeof body === "string" ? body : JSON.stringify(body)); };
 function sse(req, res, set, first) {
   res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive", "X-Accel-Buffering": "no" });
   res.write("data: " + JSON.stringify(first) + "\n\n"); set.add(res); req.on("close", () => set.delete(res));
 }
+// A user may explicitly assign a session. This never renames or modifies the agent.
+async function assignSessionRoom(req, res) {
+  let raw = "";
+  try {
+    for await (const chunk of req) {
+      raw += chunk.toString("utf8");
+      if (raw.length > 2048) {
+        res.writeHead(413, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+        return res.end(JSON.stringify({ error: "Yêu cầu quá dài" }));
+      }
+    }
+    const body = JSON.parse(raw || "{}");
+    const key = String(body.session || ""), room = String(body.room || "");
+    const agent = byKey[key] || workSessions.list(DATA).find((a) => a.key === key);
+    if (!agent || agent.ceo) {
+      res.writeHead(404, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      return res.end(JSON.stringify({ error: "Không tìm thấy session" }));
+    }
+    if (room !== "auto" && !officeRooms.isAgentRoom(room)) {
+      res.writeHead(400, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      return res.end(JSON.stringify({ error: "Phòng không hợp lệ" }));
+    }
+    ROOM_STORE.set(key, room);
+    const info = effectiveRoom(agent); agent.room = info.room; agent.roomSource = info.source;
+    res.writeHead(200, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ ok: true, session: key, room: info.room, roomLabel: officeRooms.label(info.room), source: info.source }));
+  } catch {
+    if (!res.headersSent) {
+      res.writeHead(400, { "Content-Type": "application/json", "Cache-Control": "no-store" });
+      res.end(JSON.stringify({ error: "Không thể lưu thay đổi" }));
+    }
+  }
+}
+// Register a ChatGPT chat alias from the localhost UI. A new session is not
+// treated as active until the real conversation reports a heartbeat.
+async function registerChatSession(req, res) {
+  const sendError = (code, message) => {
+    res.writeHead(code, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({ error: message }));
+  };
+  try {
+    let raw = "";
+    for await (const chunk of req) {
+      raw += chunk.toString("utf8");
+      if (raw.length > 2048) return sendError(413, "Thông tin quá dài");
+    }
+    const form = JSON.parse(raw || "{}");
+    if (typeof form.name !== "string" || !form.name.trim() || form.name.trim().length > 100)
+      return sendError(400, "Tên phiên phải có từ 1 đến 100 ký tự");
+    const room = String(form.room || "unassigned");
+    if (!officeRooms.isAgentRoom(room)) return sendError(400, "Phòng không hợp lệ");
+    const bridgeId = "chat-" + crypto.randomBytes(12).toString("hex");
+    const record = workSessions.upsert(DATA, {
+      id: bridgeId, kind: "chat", title: form.name.trim(), heartbeat: false, state: "unknown"
+    });
+    if (room !== "unassigned") ROOM_STORE.set(record.key, room);
+    res.writeHead(201, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(JSON.stringify({
+      ok: true, key: record.key, bridgeId, title: record.title,
+      room, roomLabel: officeRooms.label(room), status: "unlinked",
+      note: "Đã đăng ký alias local. Chưa có heartbeat từ cuộc trò chuyện."
+    }));
+  } catch (e) {
+    if (e instanceof SyntaxError) return sendError(400, "JSON không hợp lệ");
+    console.error("registerChatSession failed", e?.code || e?.message);
+    if (!res.headersSent) sendError(500, "Không thể lưu phiên: " + String(e?.code || "unknown"));
+  }
+}
+// Explicit, user-confirmed multi PR/Issue links. No delivery metadata
+// can mark an agent as active or claim an agent owns the referenced work.
+async function linkObserverPr(req, res) {
+  const reply=(code,body)=>{
+    res.writeHead(code,{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"});
+    res.end(JSON.stringify(body));
+  };
+  try {
+    let raw="";
+    for await(const chunk of req) {
+      raw+=chunk.toString("utf8");
+      if(raw.length>1800)return reply(413,{error:"Request too large"});
+    }
+    const body=JSON.parse(raw||"{}");
+    const session=String(body.session||"");
+    if(!/^(?:[wg]-[a-f0-9]{12}|[cx]-[a-f0-9]{8})$/i.test(session))
+      return reply(400,{error:"Invalid session ID"});
+    const agent=snapshot().agents.find(a=>a.key===session);
+    if(!agent)return reply(404,{error:"Session not found"});
+    const observer=OBSERVER.read();
+    // Legacy API: {session, pr:number|null} replaces the single PR link,
+    // but preserves linked Issues when the old browser is still open.
+    if(!Object.hasOwn(body,"type")&&Object.hasOwn(body,"pr")) {
+      const n=body.pr===null?null:Number(body.pr);
+      if(n!==null&&(!Number.isSafeInteger(n)||observer.status!=="ok"||
+        !observer.prs.some(pr=>pr.number===n)))
+        return reply(400,{error:"PR not found in current observer window"});
+      const links=DELIVERY_LINKS.set(session,n);
+      return reply(200,{ok:true,session,links,source:"user-confirmed"});
+    }
+    const type=String(body.type||"");
+    const operation=String(body.operation||"add");
+    const number=Number(body.number);
+    if(!["pr","issue"].includes(type)||!["add","remove"].includes(operation)||
+       !Number.isSafeInteger(number)||number<1||number>9999999)
+      return reply(400,{error:"Invalid PR/Issue operation"});
+    if(operation==="add") {
+      if(observer.status!=="ok")return reply(503,{error:"GitHub source unavailable, cannot verify item"});
+      const available=type==="pr"?observer.prs:observer.issues;
+      if(!available.some(item=>item.number===number))
+        return reply(400,{error:"Item not found in current GitHub window. Refresh observer or use an item from the list."});
+    }
+    const links=operation==="add"?DELIVERY_LINKS.add(session,type,number):
+      DELIVERY_LINKS.remove(session,type,number);
+    return reply(200,{ok:true,session,links,source:"user-confirmed"});
+  } catch(e) {
+    console.error("Observer link:",String(e?.code||e?.message).slice(0,100));
+    return reply(e instanceof SyntaxError||e instanceof TypeError?400:
+      e instanceof RangeError?409:500,{error:"Could not save observer link"});
+  }
+}
 http.createServer((req, res) => {
   const url = new URL(req.url, "http://x");
-  if (!authed(req, url)) { res.writeHead(401, { "Content-Type": "text/html; charset=utf-8" }); return res.end(LOGIN); }
-  if (KEY && url.searchParams.has("key")) { res.writeHead(302, { "Set-Cookie": `vpk=${keyHash}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`, Location: url.pathname }); return res.end(); }
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN"); // embedded same-origin dashboard iframes
+  if (url.pathname === "/auth/login") return AUTH.login(req, res).catch(() => { if (!res.headersSent) { res.writeHead(500); res.end(); } });
+  if (!AUTH.authorized(req)) return AUTH.requireLogin(res);
+  if (req.method === "POST" && !security.sameOrigin(req)) { res.writeHead(403); return res.end("Invalid Origin"); }
+  if (url.pathname === "/api/sessions/register") {
+    if (req.method !== "POST") { res.writeHead(405); return res.end(); }
+    return registerChatSession(req, res);
+  }
+  if (url.pathname === "/api/rooms/assign") {
+    if (req.method !== "POST") { res.writeHead(405); return res.end(); }
+    return assignSessionRoom(req, res);
+  }
+  if (url.pathname === "/api/observer/link") {
+    if (req.method !== "POST") { res.writeHead(405); return res.end(); }
+    return linkObserverPr(req, res);
+  }
+  if (url.pathname === "/api/observer") {
+    if (req.method !== "GET") { res.writeHead(405); return res.end(); }
+    return json(res, { observer: OBSERVER.read(), links: DELIVERY_LINKS.all(),
+      agents: snapshot().agents.map((a) => ({ key: a.key, name: a.name, room: a.room, platform: a.platform, observation: a.observation })) });
+  }
   if (url.pathname === "/events") return sse(req, res, clients, snapshot());
   if (url.pathname === "/state") return json(res, snapshot());
   if (url.pathname === "/perf-events") return sse(req, res, perfClients, perfNow());
@@ -608,9 +830,21 @@ http.createServer((req, res) => {
     chat.handle(req, res, url, { CFG, DATA, agentByKey: (k) => byKey[k], onEvent: pushEvent, ht: hopthuNow }).then((r) => { if (r === false) { res.writeHead(404); res.end(); } }).catch(() => { if (!res.headersSent) { res.writeHead(500); res.end(); } });
     return;
   }
-  const file = url.pathname === "/" ? "index.html" : url.pathname.replace(/^\/+/, "");
-  const p = path.join(ROOT, "public", path.normalize(file).replace(/^(\.\.[\\/])+/, ""));
-  if (!p.startsWith(path.join(ROOT, "public"))) { res.writeHead(403); return res.end(); }
+  // API misses are JSON, never a static-file 404 plain-text response.
+  if (url.pathname.startsWith("/api/")) {
+    res.writeHead(404, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    return res.end(JSON.stringify({ error: "API không tồn tại trên phiên Văn phòng AI đang chạy (HTTP 404)." }));
+  }
+  // Three.js is served locally from a strictly scoped package directory.
+  const vendor = url.pathname.startsWith("/vendor/three/");
+  const base = path.resolve(ROOT, vendor ? "node_modules/three" : "public");
+  let name;
+  try {
+    name = decodeURIComponent(vendor ? url.pathname.slice("/vendor/three/".length) : url.pathname === "/" ? "index.html" : url.pathname.slice(1));
+  } catch { res.writeHead(400); return res.end(); }
+  const p = path.resolve(base, name);
+  if (p !== base && !p.startsWith(base + path.sep)) { res.writeHead(403); return res.end(); }
+  if (vendor && !(/\.(?:js|css|json|map)$/i.test(p))) { res.writeHead(403); return res.end(); }
   fs.readFile(p, (err, buf) => {
     if (err) { res.writeHead(404); return res.end("không có"); }
     res.writeHead(200, { "Content-Type": MIME[path.extname(p)] || "application/octet-stream", "Cache-Control": "no-cache" }); res.end(buf);
@@ -620,5 +854,5 @@ http.createServer((req, res) => {
   console.log(`  Mở trên máy này:  http://localhost:${PORT}`);
   console.log(`  Dự án theo dõi:   ${PROJECTS.length ? PROJECTS.join(", ") : "mọi dự án trên máy"}`);
   console.log(`  Sổ điều phối:     ${DATA}`);
-  console.log(`  Khóa xem:         ${KEY ? "đang bật" : "tắt (chỉ máy này xem được nếu host = 127.0.0.1)"}\n`);
+  console.log(`  Khóa xem:         ${CFG.accessKey ? "đang bật" : "tắt (chỉ truy cập local khi không có accessKey)"}\n`);
 });
