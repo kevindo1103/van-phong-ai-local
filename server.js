@@ -8,6 +8,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const crypto = require("crypto");
+const security = require("./lib/security");
 const { execFile } = require("child_process");
 const perf = require("./lib/perf");
 const chat = require("./lib/chat");
@@ -495,7 +496,7 @@ function snapshot() {
     else if (qi >= 0 && where !== "dev") { flag = "waiting"; where = "g1q"; }
     const L = !a.ceo && live.get(a.id);
     return { key: a.key, name: a.name, role: a.role, platform: a.platform, room: a.room, where, status, flag, session: a.ceo ? null : a.id.slice(0, 8), host: L && L.host ? L.host.slice(0, 8) : null,
-      lastText: lt, lastTextAt: a.ceo ? a.ceoLastAt : a.lastTextAt, queuePos: qi >= 0 ? qi + 1 : null, lastActive: a.ceo ? a.ceoLastAt : a.mtime, sub: a.subActive || 0,
+      lastText: CFG.showSessionContent ? lt : "", lastTextAt: a.ceo ? a.ceoLastAt : a.lastTextAt, queuePos: qi >= 0 ? qi + 1 : null, lastActive: a.ceo ? a.ceoLastAt : a.mtime, sub: a.subActive || 0,
       hasJournal: !!(a.file || a.ceo), isNew: !a.ceo && t - a.createdAt < 3600000, createdAt: a.ceo ? null : a.createdAt, hist: Array.from({ length: 60 }, (_, i) => (a.mins.has(nowMin - 59 + i) ? 1 : 0)) };
   });
   const recent = events.filter((e) => t - e.t < 24 * 3600000);
@@ -529,7 +530,8 @@ function snapshot() {
   if (ht.tong && ht.tong.nhac2) alerts.push({ level: "bad", text: `Hòm thư: ${ht.tong.nhac2} tin đã đọc lại ≥ 2 lần mà chưa xong` });
   const { weekRows, ...devOut } = dev;
   return { now: t, title: CFG.title, subtitle: CFG.subtitle, ownerName: CFG.ownerName, tinKet: { at: t, items: [] }, agents: out, dev: { ...devOut, lastRows: dev.lastRows.slice(-25), match },
-    turns, team, tasks: taskView, sys, events: recent.slice(-300), alerts, asks: ceoAsks(out, t), money: moneyOf(week, t) };
+    turns, team, tasks: taskView, sys, events: (CFG.showSessionContent ? recent : recent.map((e) => ({ ...e, title: "Nội dung phiên đã ẩn", body: "" }))).slice(-300), alerts,
+    asks: ceoAsks(out, t).map((a) => (CFG.showSessionContent || a.kind === "so" ? a : { ...a, text: "Có yêu cầu từ phiên AI (nội dung đã ẩn)" })), money: moneyOf(week, t) };
 }
 
 // ---------- vòng lặp ----------
@@ -569,24 +571,12 @@ function docsNow() {
 // ---------- máy chủ web ----------
 const clients = new Set(), perfClients = new Set();
 let perfCache = null;
-const perfNow = () => { if (!perfCache || now() - perfCache.at > 1500) perfCache = { at: now(), data: perf.compute(agents.filter((a) => !a.ceo), snapshot().agents, events, dev.weekRows || []) }; return perfCache.data; };
+const perfNow = () => { if (!perfCache || now() - perfCache.at > 1500) perfCache = { at: now(), data: perf.compute(agents.filter((a) => !a.ceo), snapshot().agents, events, dev.weekRows || [], { showHeuristicGrades: CFG.showHeuristicGrades }) }; return perfCache.data; };
 setInterval(() => { if (!clients.size) return; const d = "data: " + JSON.stringify(snapshot()) + "\n\n"; for (const r of clients) r.write(d); }, 1000);
 setInterval(() => { if (!perfClients.size) return; const d = "data: " + JSON.stringify(perfNow()) + "\n\n"; for (const r of perfClients) r.write(d); }, 2000);
 
-// Khóa xem (tùy chọn): đặt "accessKey" trong config.json thì phải nhập khóa một lần mới xem được (nên bật khi mở ra Internet).
-const KEY = String(CFG.accessKey || "");
-const keyHash = KEY ? crypto.createHash("sha256").update(KEY).digest("hex").slice(0, 32) : "";
-const sameKey = (x) => { const a = Buffer.from(String(x || "")), b = Buffer.from(KEY); return a.length === b.length && crypto.timingSafeEqual(a, b); };
-function authed(req, url) {
-  if (!KEY) return true;
-  const ck = (req.headers.cookie || "").split(/;\s*/).find((c) => c.startsWith("vpk="));
-  return (ck && ck.slice(4) === keyHash) || sameKey(url.searchParams.get("key"));
-}
-const LOGIN = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Văn phòng AI</title>
-<body style="margin:0;height:100vh;display:grid;place-items:center;background:#05070a;color:#eee;font-family:system-ui,sans-serif">
-<form method="get" style="display:grid;gap:10px;width:min(320px,90vw)"><b style="font-size:18px">Nhập khóa xem văn phòng</b>
-<input name="key" type="password" autofocus style="padding:12px;border-radius:10px;border:1px solid #333;background:#111;color:#eee;font-size:16px">
-<button style="padding:12px;border-radius:10px;border:0;background:#ecc970;font-weight:700;font-size:15px">Vào xem</button></form></body>`;
+// Local-only by default. Remote viewing requires accessKey and POST login (never URL query).
+const AUTH = security.createAuth(CFG.accessKey);
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon" };
 const json = (res, body) => { res.writeHead(200, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-cache" }); res.end(typeof body === "string" ? body : JSON.stringify(body)); };
 function sse(req, res, set, first) {
@@ -595,8 +585,12 @@ function sse(req, res, set, first) {
 }
 http.createServer((req, res) => {
   const url = new URL(req.url, "http://x");
-  if (!authed(req, url)) { res.writeHead(401, { "Content-Type": "text/html; charset=utf-8" }); return res.end(LOGIN); }
-  if (KEY && url.searchParams.has("key")) { res.writeHead(302, { "Set-Cookie": `vpk=${keyHash}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000`, Location: url.pathname }); return res.end(); }
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN"); // embedded same-origin dashboard iframes
+  if (url.pathname === "/auth/login") return AUTH.login(req, res).catch(() => { if (!res.headersSent) { res.writeHead(500); res.end(); } });
+  if (!AUTH.authorized(req)) return AUTH.requireLogin(res);
+  if (req.method === "POST" && !security.sameOrigin(req)) { res.writeHead(403); return res.end("Invalid Origin"); }
   if (url.pathname === "/events") return sse(req, res, clients, snapshot());
   if (url.pathname === "/state") return json(res, snapshot());
   if (url.pathname === "/perf-events") return sse(req, res, perfClients, perfNow());
@@ -608,9 +602,16 @@ http.createServer((req, res) => {
     chat.handle(req, res, url, { CFG, DATA, agentByKey: (k) => byKey[k], onEvent: pushEvent, ht: hopthuNow }).then((r) => { if (r === false) { res.writeHead(404); res.end(); } }).catch(() => { if (!res.headersSent) { res.writeHead(500); res.end(); } });
     return;
   }
-  const file = url.pathname === "/" ? "index.html" : url.pathname.replace(/^\/+/, "");
-  const p = path.join(ROOT, "public", path.normalize(file).replace(/^(\.\.[\\/])+/, ""));
-  if (!p.startsWith(path.join(ROOT, "public"))) { res.writeHead(403); return res.end(); }
+  // Three.js is served locally from a strictly scoped package directory.
+  const vendor = url.pathname.startsWith("/vendor/three/");
+  const base = path.resolve(ROOT, vendor ? "node_modules/three" : "public");
+  let name;
+  try {
+    name = decodeURIComponent(vendor ? url.pathname.slice("/vendor/three/".length) : url.pathname === "/" ? "index.html" : url.pathname.slice(1));
+  } catch { res.writeHead(400); return res.end(); }
+  const p = path.resolve(base, name);
+  if (p !== base && !p.startsWith(base + path.sep)) { res.writeHead(403); return res.end(); }
+  if (vendor && !(/\.(?:js|css|json|map)$/i.test(p))) { res.writeHead(403); return res.end(); }
   fs.readFile(p, (err, buf) => {
     if (err) { res.writeHead(404); return res.end("không có"); }
     res.writeHead(200, { "Content-Type": MIME[path.extname(p)] || "application/octet-stream", "Cache-Control": "no-cache" }); res.end(buf);
@@ -620,5 +621,5 @@ http.createServer((req, res) => {
   console.log(`  Mở trên máy này:  http://localhost:${PORT}`);
   console.log(`  Dự án theo dõi:   ${PROJECTS.length ? PROJECTS.join(", ") : "mọi dự án trên máy"}`);
   console.log(`  Sổ điều phối:     ${DATA}`);
-  console.log(`  Khóa xem:         ${KEY ? "đang bật" : "tắt (chỉ máy này xem được nếu host = 127.0.0.1)"}\n`);
+  console.log(`  Khóa xem:         ${CFG.accessKey ? "đang bật" : "tắt (chỉ truy cập local khi không có accessKey)"}\n`);
 });

@@ -115,18 +115,52 @@ function cmdLuot() {
   if (sub === "cho") { appendLine(LUOT, { su_kien: "cho", luc: nowIso(), vai, goi: need("goi"), sha: opt.sha || undefined }); return console.log(`${vai} đã xếp hàng chờ DEV.`); }
   if (sub === "huy") { appendLine(LUOT, { su_kien: "huy_cho", luc: nowIso(), vai }); return console.log(`${vai} đã rời hàng chờ.`); }
   if (sub === "lay") {
-    if (lock && mailbox.slug(lock.owner) !== mailbox.slug(vai)) die(`DEV đang do ${lock.owner} giữ (gói ${lock.package}). Xếp hàng: vp luot cho --goi … --vai "${vai}"`);
     const goi = need("goi");
-    writeJson(LOCK, { owner: vai, package: goi, started: nowIso(), loai_luot: opt.loai || "deploy" });
+    // Tuân thủ thứ tự hàng chờ: nếu đã có người xếp trước, không vượt lượt.
+    const history = fs.existsSync(LUOT) ? fs.readFileSync(LUOT, "utf8").split("\n").filter(Boolean).flatMap((line) => {
+      try { return [JSON.parse(line)]; } catch { return []; }
+    }) : [];
+    const queue = [];
+    for (const e of history) {
+      const role = mailbox.slug(e.vai || "");
+      if (e.su_kien === "cho" && !queue.includes(role)) queue.push(role);
+      if (e.su_kien === "lay" || e.su_kien === "huy_cho") {
+        const i = queue.indexOf(role);
+        if (i >= 0) queue.splice(i, 1);
+      }
+    }
+    if (queue.length && queue[0] !== mailbox.slug(vai)) {
+      die("DEV đang có hàng chờ. Người đăng ký trước phải lấy lượt hoặc hủy lượt.");
+    }
+    // O_EXCL: chỉ MỘT tiến trình có thể tạo khóa, kể cả hai agent lấy cùng thời điểm.
+    const record = { owner: vai, package: goi, started: nowIso(), loai_luot: opt.loai || "deploy", pid: process.pid };
+    let fd;
+    try {
+      fd = fs.openSync(LOCK, "wx", 0o600);
+      fs.writeFileSync(fd, JSON.stringify(record) + "\n");
+    } catch (e) {
+      if (e.code === "EEXIST") {
+        const held = readJson(LOCK, null);
+        die(held ? "DEV đang do " + held.owner + " giữ (gói " + held.package + ", từ " + held.started + ")." :
+          "DEV.lock đã tồn tại nhưng không đọc được. Kiểm tra thủ công trước khi xử lý.");
+      }
+      die("Không lấy được lượt DEV: " + e.message);
+    } finally {
+      if (fd !== undefined) fs.closeSync(fd);
+    }
     appendLine(LUOT, { su_kien: "lay", luc: nowIso(), vai, goi, loai: opt.loai || "deploy" });
-    return console.log(`${vai} đã lấy lượt DEV cho gói ${goi}. Xong nhớ: vp luot nha --vai "${vai}" --ket-qua dat|hong`);
+    return console.log(vai + " đã lấy lượt DEV cho gói " + goi + ". Xong nhớ: vp luot nha --vai \"" + vai + "\" --ket-qua dat|hong");
   }
   if (sub === "nha") {
-    if (lock && mailbox.slug(lock.owner) !== mailbox.slug(vai)) die(`Lượt đang do ${lock.owner} giữ, không phải ${vai}.`);
+    // Không tạo sự kiện nhả lượt giả khi không có khóa hợp lệ.
+    const current = readJson(LOCK, null);
+    if (!current || !current.owner) die("DEV không có khóa hợp lệ để nhả; vui lòng kiểm tra DEV.lock.");
+    if (mailbox.slug(current.owner) !== mailbox.slug(vai)) die("Lượt đang do " + current.owner + " giữ, không phải " + vai + ".");
     const kq = need("ket-qua", "dat hoặc hong");
-    appendLine(LUOT, { su_kien: "nha", luc: nowIso(), vai, goi: lock ? lock.package : opt.goi, ket_qua: /^h/i.test(kq) ? "hỏng" : /^d/i.test(kq) ? "đạt" : kq, usd: opt.usd ? +String(opt.usd).replace(",", ".") : undefined, ghi_chu: opt["ghi-chu"] && opt["ghi-chu"] !== true ? String(opt["ghi-chu"]) : undefined });
-    try { fs.unlinkSync(LOCK); } catch {}
-    return console.log(`${vai} đã nhả lượt DEV. Người kế tiếp trong hàng chờ: vp luot xem`);
+    try { fs.unlinkSync(LOCK); }
+    catch (e) { die("Không thể nhả khóa DEV: " + e.message); }
+    appendLine(LUOT, { su_kien: "nha", luc: nowIso(), vai, goi: current.package, ket_qua: /^h/i.test(kq) ? "hỏng" : /^d/i.test(kq) ? "đạt" : kq, usd: opt.usd ? +String(opt.usd).replace(",", ".") : undefined, ghi_chu: opt["ghi-chu"] && opt["ghi-chu"] !== true ? String(opt["ghi-chu"]) : undefined });
+    return console.log(vai + " đã nhả lượt DEV. Người kế tiếp trong hàng chờ: vp luot xem");
   }
   die("Lệnh luot không rõ. Dùng: xem | cho | huy | lay | nha");
 }

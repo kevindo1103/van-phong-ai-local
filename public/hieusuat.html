@@ -108,11 +108,14 @@ svg text{fill:var(--mute2);font-family:var(--mono);font-size:10px}
   .sbar{width:100%}
   .tbl.hq thead{display:table-header-group}.tbl.hq tr{display:table-row;padding:0}.tbl.hq td{display:table-cell;padding:6px 8px;border-bottom:1px solid var(--line)}
 }
+.metrics-only .c-grade, .metrics-only .c-score,
+.metrics-only .score-legend, .metrics-only aside .score,
+.metrics-only aside .parts { display:none!important }
 </style>
 </head>
 <body>
 <header class="head">
-  <div class="brand"><div class="logo">V</div><div><b>Đánh giá nhân sự AI</b><small>Hiệu suất · token · xếp loại</small></div></div>
+  <div class="brand"><div class="logo">V</div><div><b>Hoạt động của đội AI</b><small>Phiên · token · công cụ</small></div></div>
   <div class="clock"><span class="t mono" id="clock">--:--</span><span class="live" id="live"><i></i>TRỰC TIẾP</span></div>
   <nav class="views"><a href="./" target="_top">Văn phòng 3D</a><a href="board.html" target="_top">Bảng điều hành</a><a href="tongquan.html" target="_top">Tổng quan</a><a href="tinnhan.html" target="_top">Tin nhắn</a></nav>
 </header>
@@ -123,18 +126,17 @@ svg text{fill:var(--mute2);font-family:var(--mono);font-size:10px}
     <div class="panel"><div class="ph"><h2>Token theo ngày · 7 ngày</h2><div class="legend"><span><i style="background:var(--codex)"></i>Codex</span><span><i style="background:var(--claude)"></i>Claude</span></div></div><svg id="daily" width="100%" height="190"></svg></div>
   </section>
   <section class="panel">
-    <div class="ph"><h2>Bảng xếp loại nhân sự</h2><div class="legend"><span><i style="background:var(--p1)"></i>Kết quả /40</span><span><i style="background:var(--p2)"></i>Tin cậy /20</span><span><i style="background:var(--p3)"></i>Chăm chỉ /20</span><span><i style="background:var(--p4)"></i>Tiết kiệm /20</span></div></div>
+    <div class="ph"><h2>Quan sát hoạt động AI (không phải đánh giá chất lượng)</h2><div class="legend score-legend"><span><i style="background:var(--p1)"></i>Kết quả /40</span><span><i style="background:var(--p2)"></i>Tin cậy /20</span><span><i style="background:var(--p3)"></i>Chăm chỉ /20</span><span><i style="background:var(--p4)"></i>Tiết kiệm /20</span></div></div>
     <div style="overflow-x:auto"><table class="tbl"><thead><tr>
-      <th>#</th><th>Nhân sự</th><th>Loại</th><th>Điểm</th><th class="n">Giờ làm 24h</th><th class="n">Việc xong 24h</th><th class="n">Lỗi lệnh</th><th class="n">Lượt DEV 7 ngày</th><th class="n">Tin 24h</th><th class="n">Token 24h</th><th class="n">Token mới / giờ</th><th class="n">Đệm</th><th>24 giờ</th><th>Lúc này</th>
+      <th>#</th><th>Nhân sự</th><th class="c-grade">Loại</th><th class="c-score">Điểm</th><th class="n">Giờ làm 24h</th><th class="n">Lượt kết thúc 24h</th><th class="n">Lỗi lệnh</th><th class="n">Lượt DEV 7 ngày</th><th class="n">Tin 24h</th><th class="n">Token 24h</th><th class="n">Token mới / giờ</th><th class="n">Đệm</th><th>24 giờ</th><th>Lúc này</th>
     </tr></thead><tbody id="rows"></tbody></table></div>
   </section>
   <section class="panel foot" id="how">
-    <b>Cách chấm (100 điểm, đo từ nhật ký thật):</b>
-    Kết quả 40: số lượt việc làm xong trong 24 giờ (Claude: câu trả lời kết thúc lượt; Codex: task_complete) mỗi lượt +4, cộng lượt DEV 7 ngày (đạt +12, chưa đạt −4).
-    Tin cậy 20: tỉ lệ lệnh/công cụ chạy không lỗi trong 24 giờ (lỗi 25% trở lên = 0; chưa chạy lệnh nào tính 15). Chăm chỉ 20: số giờ có hoạt động trong 24 giờ (10 giờ trở lên = đủ).
-    Tiết kiệm 20: token mới mỗi giờ làm so với mức giữa của đội cùng nền tảng (bằng hoặc thấp hơn = đủ điểm, gấp 4 lần = 0).
-    Xếp loại: <b>A</b> từ 80, <b>B</b> từ 65, <b>C</b> từ 50, <b>D</b> dưới 50.
-    <br><b>Token:</b> "token mới" là phần tính đủ giá (đầu vào chưa có trong bộ nhớ đệm + đầu ra); "đệm" là phần đọc lại ngữ cảnh cũ, rẻ hơn nhiều. Claude tính cả phiên con (subagent). Điểm là số đo tham khảo, không thay đánh giá chất lượng code.
+    <b>Đây là số liệu hoạt động, không phải KPI chất lượng.</b>
+    "Lượt kết thúc" chỉ là lượt phản hồi hoàn tất của Claude hoặc task_complete của Codex, không chứng minh task/PR đã được nghiệm thu.
+    Giờ hoạt động suy luận từ nhật ký; tỷ lệ lỗi công cụ và token không phản ánh trực tiếp chất lượng code.
+    Điểm A/B/C/D thử nghiệm bị tắt mặc định; chỉ bật có chủ đích bằng showHeuristicGrades trong config.json.
+    <br><b>Token:</b> "token mới" là đầu vào chưa cache và đầu ra, còn "đệm" là phần đọc lại ngữ cảnh. Ước tính giá API không phải hóa đơn thuê bao.
   </section>
 </main>
 <aside class="drawer" id="drawer"></aside>
@@ -173,8 +175,12 @@ function kpis(d) {
   tile("Quỹ Codex tuần", q.usedPct != null ? q.usedPct + "%" : "–", q.resetsAt ? `đặt lại ${new Date(q.resetsAt).toLocaleString("vi-VN", { weekday: "short", hour: "2-digit", minute: "2-digit" })}` : "chưa đọc được", q.usedPct != null ? [[q.usedPct, q.usedPct > 80 ? "var(--bad)" : q.usedPct > 60 ? "var(--warn)" : "var(--ok)", `Đã dùng ${q.usedPct}% quỹ tuần`], [100 - q.usedPct, "#1c1c1c", `Còn ${100 - q.usedPct}%`]] : null);
   const nNew = d.rows.filter((r) => r.isNew).length;
   tile("Nhân sự AI", String(d.rows.length), `${d.rows.filter((r) => r.status === "active").length} đang làm${nNew ? ` · ${nNew} người mới` : ""}`);
-  const g = (x) => d.rows.filter((r) => r.score.grade === x).length;
-  tile("Xếp loại", `${g("A")}A · ${g("B")}B`, `${g("C")} loại C · ${g("D")} loại D${g("–") ? ` · ${g("–")} chưa đủ số liệu` : ""}`);
+  if (d.experimentalScore) {
+    const g = (x) => d.rows.filter((r) => r.score.grade === x).length;
+    tile("Xếp loại (thử nghiệm)", g("A") + "A · " + g("B") + "B", g("C") + " C · " + g("D") + " D");
+  } else {
+    tile("Lượt kết thúc 24h", String(d.rows.reduce((n, r) => n + r.done.d24, 0)), "Không đồng nghĩa với task đã nghiệm thu");
+  }
 }
 
 function bars(svg, series, labelOf, every) {
@@ -218,7 +224,7 @@ function table(d) {
     sw.append(sb, h("span", "mono st", String(r.score.total))); sc.appendChild(sw); tr.appendChild(sc);
     const td = (txt, cls = "") => { const e = h("td", "n mono hide-m " + cls, txt); tr.appendChild(e); return e; };
     td(vn(r.hr24) + " h");
-    td(String(r.done.d24)).setAttribute("data-tip", `${r.done.d24} lượt việc xong trong 24 giờ, ${r.done.d7} lượt trong 7 ngày`);
+    td(String(r.done.d24)).setAttribute("data-tip", `${r.done.d24} lượt trả lời kết thúc trong 24 giờ, ${r.done.d7} lượt trong 7 ngày`);
     td(r.tool.n ? `${r.tool.err}/${r.tool.n}` : "–").setAttribute("data-tip", r.tool.n ? `${r.tool.err} lần lỗi trên ${r.tool.n} lệnh/công cụ trong 24 giờ` : "Chưa chạy lệnh nào trong 24 giờ");
     td(r.dev.turns ? `${r.dev.ok} / ${r.dev.turns}` : "–").setAttribute("data-tip", r.dev.turns ? `${r.dev.ok} lượt đạt, ${r.dev.fail} lượt chưa đạt` : "Chưa có lượt DEV trong 7 ngày");
     td(`${r.msg.sent} ↑ ${r.msg.recv} ↓`).setAttribute("data-tip", `Gửi ${r.msg.sent} tin, nhận ${r.msg.recv} tin trong 24 giờ`);
@@ -229,7 +235,7 @@ function table(d) {
     const stt = r.flag === "blocked" ? ["blocked", "bị chặn"] : [r.status, ST[r.status] || r.status];
     tr.appendChild(h("td", "hide-m"));
     tr.lastChild.appendChild(h("span", "st " + stt[0], stt[1]));
-    const m = h("td", "c-m", `${vn(r.hr24)} giờ làm · ${r.done.d24} việc xong · ${tok(r.t24.t)} token 24h · ${stt[1]}`); m.style.display = "none"; tr.appendChild(m);
+    const m = h("td", "c-m", `${vn(r.hr24)} giờ làm · ${r.done.d24} lượt kết thúc · ${tok(r.t24.t)} token 24h · ${stt[1]}`); m.style.display = "none"; tr.appendChild(m);
     tb.appendChild(tr);
   });
   if (matchMedia("(max-width: 900px)").matches) tb.querySelectorAll(".c-m").forEach((e) => (e.style.display = ""));
@@ -262,6 +268,7 @@ const hourLabel = (x, short) => { const d = new Date(x.t); return short ? d.getH
 
 function render(d) {
   data = d;
+  document.body.classList.toggle("metrics-only", !d.experimentalScore);
   kpis(d);
   bars($("hourly"), d.team.hourly, hourLabel, 3);
   bars($("daily"), d.team.daily, dayLabel, 1);
