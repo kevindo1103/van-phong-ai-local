@@ -14,7 +14,7 @@ test("functional session prefixes send the session to its owner room", () => {
     ["Frontend | Home", "dave"],
     ["Front-end: Order", "dave"],
     ["[Product] Backlog", "stu"],
-    ["QC: Smoke", "gru"],
+    ["QC: Smoke", "agnes"],
     ["Infra - Release gate", "gru"],
     ["[Infra] VPS61", "gru"],
     ["PM: Sprint planning", "james"],
@@ -24,12 +24,15 @@ test("functional session prefixes send the session to its owner room", () => {
     assert.equal(rolePrefixRoom(name), room, "wrong owner for " + name);
     assert.deepEqual(resolve(name), { room, source: "prefix" });
   }
-  assert.equal(ROLE_ROOM.qc, ROLE_ROOM.infra);
+  assert.notEqual(ROLE_ROOM.qc, ROLE_ROOM.infra);
   assert.ok(ROOMS.some((r) => r.id === "gru" && r.label.includes("Infra")));
+  assert.equal(resolve("Project · James").room,"james");
+  assert.equal(resolve("QC · Agnes").room,"agnes");
+  assert.equal(resolve("Docs · Edith").room,"edith");
 });
 
 test("known owner name is a backup, unnamed sessions are in the common area", () => {
-  const owners = { Kyle: "ceo", Bob: "bob", Dave: "dave", Stu: "stu", Gru: "gru", James: "james" };
+  const owners = { Kyle: "ceo", Bob: "bob", Dave: "dave", Stu: "stu", Agnes: "agnes", Gru: "gru", James: "james", Edith: "edith" };
   for (const [owner, room] of Object.entries(owners)) {
     assert.equal(ownerRoomFromName(owner + " - work"), room);
     assert.equal(resolve(owner + " - work").room, room);
@@ -42,7 +45,7 @@ test("known owner name is a backup, unnamed sessions are in the common area", ()
     assert.deepEqual(resolve(name), { room: "unassigned", source: "unassigned" }, name);
   }
   assert.ok(AGENT_ROOMS.includes("unassigned"));
-  assert.ok(ROOMS.some((r) => r.id === "unassigned" && /Khu vực chung/i.test(r.label)));
+  assert.ok(ROOMS.some((r) => r.id === "unassigned" && /Chưa phân công/i.test(r.label)));
 });
 
 test("every assigned room gets individual, stable positions within its boundaries", () => {

@@ -143,7 +143,7 @@ const $ = (id) => document.getElementById(id);
 const h = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const ago = (ms) => { if (!ms) return "–"; const s = Math.max(0, (Date.now() - ms) / 1000); if (s < 60) return Math.round(s) + " giây"; if (s < 3600) return Math.round(s / 60) + " phút"; return (s / 3600).toFixed(1).replace(".", ",") + " giờ"; };
 const short = (n) => n.split(" · ")[0];
-const PCOL = { claude: 0xd9734a, codex: 0x3f8fd9, human: 0xecc970 };
+const PCOL = { claude: 0xd9734a, codex: 0x3f8fd9, work: 0xb896ff, human: 0xecc970 };
 const SC = { ok: 0x7ccf9b, warn: 0xecc970, bad: 0xe8a39b, idle: 0x3a4048, off: 0x1c1f24 };
 
 // Ba lớp vẽ: trang HTML của màn hình lớn (dưới) · WebGL có lỗ trong suốt (giữa) · nhãn tên (trên).
@@ -159,9 +159,9 @@ const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 800); // góc rộng đ�
 const controls = new OrbitControls(camera, gl.domElement);
 controls.enableDamping = true; controls.maxPolarAngle = 1.38; controls.minDistance = 14; controls.maxDistance = 260;
 const S = 8; // 1 đơn vị 3D = 8 px mặt bằng: văn phòng rộng hơn 25%
-const X = (x) => (x - 600) / S, Z = (y) => (y - 390) / S;
+const X = (x) => (x - 600) / S, Z = (y) => (y - 480) / S;
 // Office-focused camera: the floor occupies the main view; wall dashboards are an optional view.
-const HOME_CAM = { pos: new THREE.Vector3(18, 110, 110), target: new THREE.Vector3(18, 0, 0) };
+const HOME_CAM = { pos: new THREE.Vector3(18, 138, 138), target: new THREE.Vector3(18, 0, 0) };
 const WIDE_CAM = { pos: new THREE.Vector3(0, 58, 158), target: new THREE.Vector3(0, 32, -20) };
 let viewMode = "office", focusedRoom = "all";
 function resize() {
@@ -169,7 +169,7 @@ function resize() {
   gl.setSize(w, hh); lblR.setSize(w, hh); cssR.setSize(w, hh);
   camera.aspect = w / hh; camera.updateProjectionMatrix();
   const narrow = Math.max(1, 1.65 / camera.aspect);
-  HOME_CAM.pos.set(18, 110 * narrow, 110 * narrow);
+  HOME_CAM.pos.set(18, 138 * narrow, 138 * narrow);
   HOME_CAM.target.set(18, 0, 0);
   WIDE_CAM.pos.set(0, 95 * narrow, 245 * narrow);
 }
@@ -209,7 +209,7 @@ const woodTex = tex(512, 512, (g, w, hh) => {
 const carpetTex = tex(256, 256, (g, w, hh) => { g.fillStyle = "#808080"; g.fillRect(0, 0, w, hh); for (let i = 0; i < 9000; i++) { const v = 110 + Math.random() * 40; g.fillStyle = `rgb(${v},${v},${v})`; g.fillRect(Math.random() * w, Math.random() * hh, 1.5, 1.5); } }, 6, 6);
 
 // sàn gỗ toàn văn phòng + tường bao thấp
-const OW = 1200 / S + 14, OD = 780 / S + 14;
+const OW = 1200 / S + 14, OD = 960 / S + 14;
 const floor = add(new THREE.Mesh(new THREE.PlaneGeometry(OW, OD), std(0xffffff, { map: woodTex, roughness: .5, metalness: .05 })), 0, 0, 0); floor.rotation.x = -Math.PI / 2; floor.castShadow = false;
 const outerMat = std(0xe9e6e1, { roughness: .85 });
 add(new THREE.Mesh(new THREE.BoxGeometry(OW, 3, 0.6), outerMat), 0, 1.5, OD / 2);
@@ -248,11 +248,11 @@ function plant(x, z, s = 1) {
 for (const [x, y] of [[232, 32], [854, 32], [30, 466], [854, 466], [1170, 330], [1170, 752], [30, 752], [412, 466], [500, 200], [1170, 32]]) plant(X(x), Z(y), 1.05);
 
 // phòng họp: bàn tròn, ghế, sofa
-add(new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.2, 0.25, 64), std(0xc59a6e, { roughness: .35 })), X(980), 1.5, Z(648));
-add(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.2, 1.4, 24), std(0x2a2a2e, { metalness: .6, roughness: .3 })), X(980), .7, Z(648));
+add(new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.2, 0.25, 64), std(0xc59a6e, { roughness: .35 })), X(890), 1.5, Z(790));
+add(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 1.2, 1.4, 24), std(0x2a2a2e, { metalness: .6, roughness: .3 })), X(890), .7, Z(790));
 const fabric = std(0x4a4f57, { roughness: .95 });
-for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const cx = X(980) + Math.cos(a) * 7, cz = Z(648) + Math.sin(a) * 7; const c = add(new THREE.Mesh(new THREE.BoxGeometry(1.6, .3, 1.6), fabric), cx, 1, cz); const b = add(new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.4, .25), fabric), cx + Math.cos(a) * .7, 1.8, cz + Math.sin(a) * .7); b.lookAt(X(980), 1.8, Z(648)); add(new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, 1, 8), alu), cx, .5, cz); }
-for (const [dz, rot] of [[0, 0]]) { const sx = X(1100), sz = Z(715); add(new THREE.Mesh(new THREE.BoxGeometry(12, 1, 3.4), std(0x3c4048, { roughness: .95 })), sx, .8, sz + dz); add(new THREE.Mesh(new THREE.BoxGeometry(12, 2.2, .8), std(0x3c4048, { roughness: .95 })), sx, 1.6, sz + 1.6); for (const ax of [-1, 1]) add(new THREE.Mesh(new THREE.BoxGeometry(.8, 1.6, 3.4), std(0x3c4048, { roughness: .95 })), sx + ax * 6, 1.1, sz); add(new THREE.Mesh(new THREE.BoxGeometry(5, .2, 2.4), std(0xc59a6e, { roughness: .35 })), sx, 1, sz - 4); }
+for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const cx = X(890) + Math.cos(a) * 7, cz = Z(790) + Math.sin(a) * 7; const c = add(new THREE.Mesh(new THREE.BoxGeometry(1.6, .3, 1.6), fabric), cx, 1, cz); const b = add(new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.4, .25), fabric), cx + Math.cos(a) * .7, 1.8, cz + Math.sin(a) * .7); b.lookAt(X(890), 1.8, Z(790)); add(new THREE.Mesh(new THREE.CylinderGeometry(.08, .08, 1, 8), alu), cx, .5, cz); }
+for (const [dz, rot] of [[0, 0]]) { const sx = X(1080), sz = Z(860); add(new THREE.Mesh(new THREE.BoxGeometry(12, 1, 3.4), std(0x3c4048, { roughness: .95 })), sx, .8, sz + dz); add(new THREE.Mesh(new THREE.BoxGeometry(12, 2.2, .8), std(0x3c4048, { roughness: .95 })), sx, 1.6, sz + 1.6); for (const ax of [-1, 1]) add(new THREE.Mesh(new THREE.BoxGeometry(.8, 1.6, 3.4), std(0x3c4048, { roughness: .95 })), sx + ax * 6, 1.1, sz); add(new THREE.Mesh(new THREE.BoxGeometry(5, .2, 2.4), std(0xc59a6e, { roughness: .35 })), sx, 1, sz - 4); }
 
 // ---------- màn hình lớn: to bằng cả văn phòng ----------
 const preWallChildren = new Set(scene.children);
@@ -307,8 +307,8 @@ showWallScreens(false);
 const HOME = {};
 const DESKS = {};
 let computedSeats = {};
-const DEV_SEAT = [580, 642];
-const G1Q = [[438, 718], [488, 718], [538, 718], [588, 718], [638, 718], [688, 718], [728, 718]];
+const DEV_SEAT = [300, 797];
+const G1Q = [[100, 870], [160, 870], [220, 870], [280, 870], [340, 870], [400, 870], [460, 870]];
 const oak = std(0xc9a27a, { roughness: .4 }), white = std(0xf4f4f2, { roughness: .4 }), black = std(0x141518, { roughness: .35, metalness: .3 }), chairMat = std(0x26292e, { roughness: .8 });
 const screens = {};
 function seatFor(a) {
@@ -361,7 +361,7 @@ function buildRacks(cs) {
   if (racks.length === cs.length) return;
   rackG.clear(); racks.length = 0;
   cs.forEach((c, i) => {
-    const x = X(430 + (i % 4) * 80), z = Z(550 + Math.floor(i / 4) * 45);
+    const x = X(78 + (i % 5) * 93), z = Z(700 + Math.floor(i / 5) * 40);
     add(new THREE.Mesh(new THREE.BoxGeometry(7, 6, 2.2), std(0x121418, { metalness: .7, roughness: .3 })), x + 3.5, 3, z, rackG);
     const leds = [];
     for (let j = 0; j < 9; j++) { const led = new THREE.Mesh(new THREE.BoxGeometry(.7, .16, .05), new THREE.MeshBasicMaterial({ color: 0x7ccf9b })); led.position.set(x + 1.3 + (j % 3) * 2.2, 5 - Math.floor(j / 3) * .8, z + 1.13); rackG.add(led); leds.push(led); }
@@ -431,7 +431,7 @@ function fly(e) {
 // Họp review: tin REVIEW/duyệt -> người nộp và người duyệt ra họp.
 // Họp giao việc: một người gửi việc cho từ 2 người trở lên trong 5 phút -> cả nhóm ra họp.
 // Trong họp: chủ trì đọc lại từng việc (tiêu đề thật), người nhận xác nhận; hết giờ chủ trì chốt "ai làm gì" rồi mọi người về bàn.
-const MT = { x: X(980), z: Z(648) };
+const MT = { x: X(890), z: Z(790) };
 const MEET_KIND = { ceo: ["Họp với Giám đốc", "#ecc970"], incident: ["Họp xử lý sự cố", "#e8a39b"], review: ["Họp review", "#8fc0ef"], assign: ["Họp giao việc", "#7ccf9b"] };
 const angTo = (p) => Math.atan2(p.z - MT.z, p.x - MT.x);
 const ringPt = (a, r) => new THREE.Vector3(MT.x + Math.cos(a) * r, 0.14, MT.z + Math.sin(a) * r);
@@ -596,7 +596,7 @@ function renderDirectory(s) {
     const dot = h("span", "status-dot " + agent.status);
     const meta = h("span", "session-meta");
     meta.append(h("strong", "", agent.name), h("small", "",
-      agent.platform === "human" ? "CEO" : OfficeRooms.label(agent.room) + " · " + (agent.status === "active" ? "Đang làm" : agent.status === "idle" ? "Chờ" : "Tạm nghỉ")));
+      agent.platform === "human" ? "CEO" : agent.platform === "work" && agent.connection !== "live" ? OfficeRooms.label(agent.room) + (agent.connection === "unlinked" ? " · Chưa kết nối" : " · Mất tín hiệu") : OfficeRooms.label(agent.room) + " · " + (agent.status === "active" ? "Đang làm" : agent.status === "idle" ? "Chờ" : "Tạm nghỉ")));
     b.append(dot, meta);
     b.addEventListener("click", () => {
       selected = agent.key;
@@ -701,6 +701,7 @@ function apply(s) {
     else if (a.flag === "waiting") { label = `▲ chờ lượt DEV #${a.queuePos || ""}`; col = "#ecc970"; }
     else if (a.where === "dev") { label = "◆ đang trên DEV"; col = "#ecc970"; }
     else if (a.sub) { label = `${a.sub} phiên con`; col = "#8fc0ef"; }
+    else if (a.platform === "work" && a.connection !== "live") { label = a.connection === "unlinked" ? "Chưa kết nối" : "Mất tín hiệu"; col = "#8290a4"; }
     else if (b.active) { label = "● đang làm"; col = "#7ccf9b"; }
     b.bub.style.display = label ? "inline-block" : "none"; b.bub.textContent = label; b.bub.style.color = col; b.bub.style.borderColor = col;
     b.lab.classList.toggle("sel", selected === a.key);
@@ -720,8 +721,8 @@ function showCard() {
   c.style.display = "block";
   let info = c.querySelector(".info"); if (!info) { info = h("div", "info"); c.prepend(info); } info.textContent = ""; // phần thông tin vẽ lại mỗi giây, ô nhắn tin giữ nguyên
   const h4 = h("h4", "", short(a.name)); const x = h("button", "", "Đóng"); x.onclick = () => { selected = null; c.style.display = "none"; showCard(); }; h4.appendChild(x); info.appendChild(h4);
-  const st = a.flag === "blocked" ? "bị chặn" : a.flag === "waiting" ? `chờ lượt DEV #${a.queuePos || ""}` : a.where === "dev" ? "đang trên DEV" : { active: "đang làm", idle: "đang rảnh", away: "nghỉ lâu", offline: "không đọc được nhật ký" }[a.status];
-  info.append(h("div", "m", `${a.role} · ${a.platform === "codex" ? "Codex" : a.platform === "claude" ? "Claude" : "Người"} · ${st} · hoạt động ${ago(a.lastActive)} trước`));
+  const st = a.platform === "work" && a.connection !== "live" ? "Chưa kết nối" : a.flag === "blocked" ? "bị chặn" : a.flag === "waiting" ? `chờ lượt DEV #${a.queuePos || ""}` : a.where === "dev" ? "đang trên DEV" : { active: "đang làm", idle: "đang rảnh", away: "nghỉ lâu", offline: "không đọc được nhật ký" }[a.status];
+  info.append(h("div", "m", `${a.role} · ${a.platform === "codex" ? "Codex" : a.platform === "claude" ? "Claude" : a.platform === "work" ? "ChatGPT Work" : "Người"} · ${st}${a.lastActive ? " · hoạt động " + ago(a.lastActive) + " trước" : ""}`));
   if (a.lastText) info.appendChild(h("p", "", "“" + a.lastText + "”"));
   if (!a.ceo) {
     info.appendChild(h("div", "m", "Phòng: " + OfficeRooms.label(a.room) +
@@ -757,7 +758,9 @@ function showCard() {
     const tools = c.querySelector(".room-tools");
     if (tools) tools.remove();
   }
-  window.ChatBox && ChatBox.mount(c, a);
+  if (a.platform === "work") {
+    info.appendChild(h("p", "m", a.connection === "live" ? "Có heartbeat từ phiên Work." : "Work session chưa phát heartbeat. Không thể khẳng định đang chạy chỉ từ tên Recents."));
+  } else window.ChatBox && ChatBox.mount(c, a);
 }
 window.thuTin = (from, to, title, kind = "msg") => handle({ t: Date.now(), kind, from, to, title }, true); // thử hiệu ứng tin nhắn
 let lastMsgAt = 0;

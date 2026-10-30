@@ -10,6 +10,7 @@ const os = require("os");
 const crypto = require("crypto");
 const security = require("./lib/security");
 const officeRooms = require("./public/rooms");
+const workSessions = require("./lib/work-sessions");
 const { createStore: createRoomStore } = require("./lib/session-rooms");
 const { execFile } = require("child_process");
 const perf = require("./lib/perf");
@@ -515,6 +516,16 @@ function snapshot() {
       lastText: CFG.showSessionContent ? lt : "", lastTextAt: a.ceo ? a.ceoLastAt : a.lastTextAt, queuePos: qi >= 0 ? qi + 1 : null, lastActive: a.ceo ? a.ceoLastAt : a.mtime, sub: a.subActive || 0,
       hasJournal: !!(a.file || a.ceo), isNew: !a.ceo && t - a.createdAt < 3600000, createdAt: a.ceo ? null : a.createdAt, hist: Array.from({ length: 60 }, (_, i) => (a.mins.has(nowMin - 59 + i) ? 1 : 0)) };
   });
+  // Work conversations are opt-in: only metadata registered locally is visible.
+  // No "active" status is inferred from Recents; a recent explicit heartbeat is required.
+  for (const external of workSessions.list(DATA, t)) {
+    const manual = ROOM_STORE.get(external.key);
+    if (manual) {
+      external.room = manual; external.where = manual;
+      external.roomSource = "manual"; external.roomLabel = officeRooms.label(manual);
+    }
+    out.push(external);
+  }
   const recent = events.filter((e) => t - e.t < 24 * 3600000);
   const alerts = [];
   if (dev.idleSince && t - dev.idleSince > 15 * 60000 && dev.queue.length) alerts.push({ level: "warn", text: `DEV trống ${Math.round((t - dev.idleSince) / 60000)} phút, hàng chờ còn ${dev.queue.length} gói` });
@@ -612,7 +623,7 @@ async function assignSessionRoom(req, res) {
     }
     const body = JSON.parse(raw || "{}");
     const key = String(body.session || ""), room = String(body.room || "");
-    const agent = byKey[key];
+    const agent = byKey[key] || workSessions.list(DATA).find((a) => a.key === key);
     if (!agent || agent.ceo) {
       res.writeHead(404, { "Content-Type": "application/json", "Cache-Control": "no-store" });
       return res.end(JSON.stringify({ error: "Không tìm thấy session" }));

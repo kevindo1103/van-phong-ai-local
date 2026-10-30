@@ -24,6 +24,6 @@ test("office view is the legible default, with optional panoramic dashboards", (
 test("room directory includes the configured owners", () => {
   const office = require("../public/rooms");
   const names = Object.keys(office.ID_OWNER);
-  assert.deepEqual(names, ["ceo", "bob", "dave", "stu", "gru", "james"]);
+  assert.deepEqual(names, ["ceo", "bob", "dave", "stu", "agnes", "gru", "james", "edith"]);
   for (const name of names) assert.ok(office.label(name).length >= 4);
 });

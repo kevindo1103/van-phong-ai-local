@@ -242,7 +242,7 @@ const s$ = (tag, a, p) => { const e = document.createElementNS(NS, tag); for (co
 const hhmm = (ms) => new Date(ms).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 const ago = (ms) => { if (!ms) return "–"; const s = Math.max(0, (Date.now() - ms) / 1000); if (s < 60) return Math.round(s) + "s"; if (s < 3600) return Math.round(s / 60) + "′"; if (s < 86400) return (s / 3600).toFixed(1).replace(".", ",") + "h"; return Math.round(s / 86400) + "d"; };
 const agoLong = (ms) => { if (!ms) return "–"; const s = Math.max(0, (Date.now() - ms) / 1000); if (s < 60) return Math.round(s) + " giây"; if (s < 3600) return Math.round(s / 60) + " phút"; return (s / 3600).toFixed(1).replace(".", ",") + " giờ"; };
-const PCOL = { claude: "var(--claude)", codex: "var(--codex)", human: "var(--gold)" };
+const PCOL = { claude: "var(--claude)", codex: "var(--codex)", work: "#b896ff", human: "var(--gold)" };
 const GROUPS = OfficeRooms.AGENT_ROOMS.map((id) => [id, OfficeRooms.label(id)]);
 const groupName = (room) => (GROUPS.find((g) => g[0] === room) || [0, "Khác"])[1];
 const short = (n) => n.split(" · ")[0];
@@ -250,6 +250,8 @@ let selected = null, lastS = null;
 const prevActive = {};
 
 function stateOf(a) {
+  if (a.platform === "work" && a.connection === "unlinked") return ["off", "◌ Chưa kết nối"];
+  if (a.platform === "work" && a.connection === "stale") return ["warn", "◌ Mất tín hiệu"];
   if (a.flag === "blocked") return ["bad", "■ Bị chặn"];
   if (a.flag === "waiting") return ["warn", `▲ Chờ lượt DEV #${a.queuePos || ""}`];
   if (a.where === "dev") return ["ok", "◆ Trên DEV"];
@@ -301,7 +303,7 @@ function render(s) {
     const nm = h("div", "nm"); const sw = h("i", "sw"); sw.style.background = PCOL[a.platform]; nm.append(sw);
     const nn = h("div", "", short(a.name)); nn.appendChild(h("small", "", a.role)); if (a.lastText) nn.appendChild(h("small", "mdoing", a.lastText)); nm.appendChild(nn);
     tr.appendChild(h("td")).appendChild(nm);
-    tr.appendChild(h("td", "doing", a.lastText || (a.hasJournal ? "" : "chưa đọc được nhật ký")));
+    tr.appendChild(h("td", "doing", a.platform === "work" ? (a.connection === "live" ? "Heartbeat đã nhận" : "Chưa có heartbeat từ ChatGPT Work") : a.lastText || (a.hasJournal ? "" : "chưa đọc được nhật ký")));
     tr.appendChild(h("td", "last" + (a.status === "active" ? "" : " stale"), ago(a.lastActive)));
     const sp = h("div", "spark"); for (const v of a.hist || []) { const i = h("i", v ? "on" : ""); if (v) i.style.background = PCOL[a.platform]; sp.appendChild(i); }
     tr.appendChild(h("td")).appendChild(sp);

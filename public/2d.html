@@ -101,7 +101,7 @@ svg#office{width:100%;height:auto;display:block}
 </header>
 <div class="wrap">
   <div class="stage">
-    <svg id="office" viewBox="0 0 1200 780" aria-label="Sơ đồ văn phòng">
+    <svg id="office" viewBox="0 0 1200 940" aria-label="Sơ đồ văn phòng">
       <defs>
         <radialGradient id="devg" cx="50%" cy="50%" r="60%"><stop offset="0" stop-color="#ecc970" stop-opacity=".16"/><stop offset="1" stop-color="#ecc970" stop-opacity="0"/></radialGradient>
         <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" stroke="#0e0e0e" stroke-width="1"/></pattern>
@@ -139,14 +139,14 @@ const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS,
 const html = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const fmtT = (ms) => new Date(ms).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 const ago = (ms) => { if (!ms) return "–"; const s = Math.max(0, (Date.now() - ms) / 1000); if (s < 60) return Math.round(s) + " giây"; if (s < 3600) return Math.round(s / 60) + " phút"; if (s < 86400) return (s / 3600).toFixed(1).replace(".", ",") + " giờ"; return Math.round(s / 86400) + " ngày"; };
-const COLOR = { claude: "var(--claude)", codex: "var(--codex)", human: "var(--human)" };
+const COLOR = { claude: "var(--claude)", codex: "var(--codex)", work: "#b896ff", human: "var(--human)" };
 
 // ----- mặt bằng -----
 const ROOMS = OfficeRooms.ROOMS;
 const HOME = {};
 let computedSeats = {};
-const DEV_SEAT = [580, 642];
-const G1Q = [[438, 718], [488, 718], [538, 718], [588, 718], [638, 718], [688, 718], [728, 718]];
+const DEV_SEAT = [300, 797];
+const G1Q = [[100, 870], [160, 870], [220, 870], [280, 870], [340, 870], [400, 870], [460, 870]];
 function seatFor(a) {
   const p = computedSeats[a.key] || OfficeRooms.seat(a.room, 0, 1);
   const fresh = !HOME[a.key];
@@ -160,9 +160,9 @@ for (const r of ROOMS) {
   el("text", { class: "roomlbl", x: r.x + 14, y: r.y + 22 }, roomsG).textContent = r.label;
 }
 // đèn sáng phòng DEV
-const devGlow = el("rect", { x: 400, y: 520, width: 360, height: 240, rx: 16, fill: "url(#devg)", class: "devglow", opacity: 0 }, roomsG);
-const devHolderTxt = el("text", { x: 580, y: 546, "text-anchor": "middle", fill: "#a6a6a6", "font-size": 11 }, roomsG);
-const devPkgTxt = el("text", { x: 580, y: 560, "text-anchor": "middle", fill: "#6f6f6f", "font-size": 10 }, roomsG);
+const devGlow = el("rect", { x: 20, y: 680, width: 560, height: 240, rx: 16, fill: "url(#devg)", class: "devglow", opacity: 0 }, roomsG);
+const devHolderTxt = el("text", { x: 300, y: 706, "text-anchor": "middle", fill: "#a6a6a6", "font-size": 11 }, roomsG);
+const devPkgTxt = el("text", { x: 300, y: 720, "text-anchor": "middle", fill: "#6f6f6f", "font-size": 10 }, roomsG);
 const rackG = el("g", {}, roomsG);
 const queueG = el("g", {}, roomsG);
 // bàn làm việc
@@ -173,7 +173,7 @@ function addDesk(k, x, y) {
   desks[k] = el("rect", { class: "screen", x: -18, y: -50, width: 36, height: 12, rx: 3, fill: "#1a1a1a" }, g);
 }
 for (const [k, [x, y]] of Object.entries(HOME)) addDesk(k, x, y);
-el("rect", { class: "desk", x: 555, y: 605, width: 52, height: 22, rx: 6 }, roomsG);
+el("rect", { class: "desk", x: 280, y: 776, width: 52, height: 22, rx: 6 }, roomsG);
 
 // ----- nhân vật -----
 const nodes = {};
@@ -250,7 +250,7 @@ function render(s) {
   rackG.textContent = "";
   const cs = s.sys.containers;
   cs.forEach((c, i) => {
-    const x = 428 + (i % 4) * 78, y = 578 + Math.floor(i / 4) * 41;
+    const x = 62 + (i % 5) * 97, y = 735 + Math.floor(i / 5) * 42;
     el("rect", { class: "rack", x, y, width: 70, height: 32, rx: 6 }, rackG);
     const okc = c.state === "running" && !/unhealthy|Restarting/i.test(c.status);
     el("circle", { class: "led", cx: x + 10, cy: y + 11, r: 3.5, fill: okc ? "#7ccf9b" : "#e8a39b" }, rackG);
@@ -260,11 +260,11 @@ function render(s) {
   // hàng chờ DEV
   queueG.textContent = "";
   (s.dev.queue || []).slice(0, 3).forEach((q, i) => {
-    const y = 668 + i * 28;
-    el("rect", { x: 414, y, width: 330, height: 26, rx: 8, fill: "#0d0d0d", stroke: "#1f1f1f" }, queueG);
-    const n = el("text", { x: 423, y: y + 17, fill: "#ecc970", "font-size": 11, "font-weight": 700 }, queueG); n.textContent = q.n;
-    const t = el("text", { x: 441, y: y + 12, fill: "#e5e5e5", "font-size": 10 }, queueG); t.textContent = q.what.slice(0, 40);
-    const w = el("text", { x: 441, y: y + 23, fill: "#6f6f6f", "font-size": 9 }, queueG); w.textContent = q.who.slice(0, 44);
+    const y = 832 + i * 28;
+    el("rect", { x: 32, y, width: 405, height: 26, rx: 8, fill: "#0d0d0d", stroke: "#1f1f1f" }, queueG);
+    const n = el("text", { x: 42, y: y + 17, fill: "#ecc970", "font-size": 11, "font-weight": 700 }, queueG); n.textContent = q.n;
+    const t = el("text", { x: 60, y: y + 12, fill: "#e5e5e5", "font-size": 10 }, queueG); t.textContent = q.what.slice(0, 40);
+    const w = el("text", { x: 60, y: y + 23, fill: "#6f6f6f", "font-size": 9 }, queueG); w.textContent = q.who.slice(0, 44);
   });
   // nhân vật
   let gIdx = 0;
@@ -282,6 +282,7 @@ function render(s) {
     if (a.flag === "blocked") { label = "bị chặn"; col = "#e8a39b"; }
     else if (a.flag === "waiting") { label = `chờ lượt DEV #${a.queuePos || ""}`; col = "#ecc970"; }
     else if (a.where === "dev") { label = "đang trên DEV"; col = "#ecc970"; }
+    else if (a.platform === "work" && a.connection !== "live") { label = "Chưa kết nối"; col = "#8290a4"; }
     else if (a.sub) { label = `${a.sub} phiên con đang chạy`; col = "#7fb7e8"; }
     n.bubble.setAttribute("opacity", label ? 1 : 0);
     n.bRect.setAttribute("fill", "#0b0b0b"); n.bRect.setAttribute("stroke", col || "#333");

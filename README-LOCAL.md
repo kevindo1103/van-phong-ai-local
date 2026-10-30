@@ -25,14 +25,35 @@ Mỗi vai có phòng 3D/2D riêng; Claude Code và Codex dùng cùng quy tắc, 
 | `Backend` / `Bob` | Backend · Bob |
 | `Frontend` / `Dave` | Frontend · Dave |
 | `Product` / `Stu` | Product · Stu |
-| `QC`, `Infra` / `Gru` | QC & Infra · Gru |
-| `PM` / `James` | PM · James |
-| Không rõ tên/prefix | Khu vực chung · Chưa có tên |
+| `QC` / `Agnes` | QC · Agnes |
+| `Infra` / `Gru` | Infra · Gru |
+| `PM`, `Project` / `James` | PM · James |
+| `Docs` / `Edith` | Docs · Edith |
+| Không rõ tên/prefix | Chưa phân công |
 
 Ví dụ: `Infra: Fix VPS61`, `[QC] Smoke test`, `Backend - B04 API`.
 Tên chỉ nhắc từ Backend/QC/Infra ở giữa câu (không có prefix) **không được** tự đoán phòng.
 
 **Gán thủ công:** nhấn vào session trong văn phòng 3D hoặc sơ đồ 2D rồi chọn phòng. Mapping được lưu tại `data/session-rooms.json` trên ThinkPad, không đẩy lên GitHub. Chọn **Tự phân phòng lại theo prefix** trong 3D để xóa gán thủ công. Các session mang trạng thái `DEV` hoặc `chờ DEV` có thể tạm di chuyển đến khu DEV nhưng phòng sở hữu vẫn giữ nguyên.
+
+## Kết nối các phiên ChatGPT Work
+
+Các mục Recents trong ChatGPT Work (cloud) không đồng nghĩa với session Claude Code / Codex CLI trên máy. Phần lớn chúng không được đồng bộ tự động qua nhật ký CLI. Không thể khẳng định đang làm chỉ từ tên một cuộc trò chuyện.
+
+Văn phòng có cầu nối Work heartbeat (chỉ ghi metadata local), theo cơ chế opt-in qua Remote Desktop Commander:
+
+    cd D:\AI-Office-Local
+    node tools/work-session.js list
+    node tools/work-session.js heartbeat --id backend-bob --name "Backend - Bob" --state active
+    node tools/work-session.js heartbeat --id backend-bob --name "Backend - Bob" --state done
+
+- register --id backend-bob --name "Backend - Bob": chỉ tạo bản ghi với trạng thái **Chưa kết nối**.
+- heartbeat --state active: xác nhận phiên đang xử lý; idle, done, blocked dùng khi thay đổi trạng thái.
+- Heartbeat hiệu lực tối đa 5 phút; quá hạn hiển thị Mất tín hiệu, không tự suy luận là đang làm.
+- Mỗi session dùng một --id ổn định riêng: backend-bob-b04, backend-bob-inventory cho nhiều phiên Backend.
+- Chỉ lưu tên, mã session, trạng thái, thời điểm; không đọc nội dung chat, file dự án hoặc token.
+- Work agent có Remote Desktop Commander trên ThinkPad phải tự gọi heartbeat khi bắt đầu, trong lúc làm việc (mỗi 2–3 phút) và lúc kết thúc. Đây không phải API tự động truy cập mọi phiên ChatGPT cloud.
+- Các tên trong ảnh được đăng ký local ở data/work-sessions/ với trạng thái Chưa kết nối; không được xem là bằng chứng chúng đang hoạt động.
 
 ## Góc nhìn và cách dùng giao diện
 
