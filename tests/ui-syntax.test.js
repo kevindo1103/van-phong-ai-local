@@ -10,7 +10,11 @@ for (const file of ["index.html", "2d.html", "board.html", "observer.html"]) {
     const html = fs.readFileSync(path.join(__dirname, "..", "public", file), "utf8");
     if (file !== "observer.html") assert.match(html, /src="rooms\.js"/);
     const scripts = [...html.matchAll(/<script(?:\s+type="([^"]+)")?>([\s\S]*?)<\/script>/g)];
-    assert.ok(scripts.length > 0, file + " is missing inline JS");
+    if(file === "observer.html") {
+      assert.match(html, /src="observer-client\.js"/);
+      const clientPath = path.join(__dirname,"..","public","observer-client.js");
+      assert.equal(spawnSync(process.execPath,["--check",clientPath],{encoding:"utf8",windowsHide:true}).status,0);
+    } else assert.ok(scripts.length > 0, file + " is missing inline JS");
     for (const script of scripts) {
       if (script[1] === "importmap") { JSON.parse(script[2]); continue; }
       const module = script[1] === "module";

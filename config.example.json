@@ -8,6 +8,8 @@
   "keepHours": 24,
   "showSessionContent": false,
   "showHeuristicGrades": false,
+  "observerRepo": "",
+  "observerRefreshSeconds": 120,
   "accessKey": "",
   "staff": [
     { "match": "quản lý", "role": "Quản lý dự án", "room": "lead" },

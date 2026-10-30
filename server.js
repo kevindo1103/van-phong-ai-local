@@ -14,6 +14,7 @@ const workSessions = require("./lib/work-sessions");
 const { createObserver } = require("./lib/observer");
 const claudeObserver = require("./lib/observer-local");
 const { createLinks } = require("./lib/observer-links");
+const { suggestLinks } = require("./lib/observer-suggestions");
 const { createStore: createRoomStore } = require("./lib/session-rooms");
 const { execFile } = require("child_process");
 const perf = require("./lib/perf");
@@ -514,8 +515,10 @@ function enrichAgentObservations(out, observerState, time) {
       else if (hook.lastStage === "idle" || hook.lastStage === "approval-wait") a.status = "idle";
       else if (hook.lastStage === "ended") a.status = "away";
     }
-    const linkedPr = DELIVERY_LINKS.get(a.key);
-    const matching = linkedPr ? observerState.prs.find((p) => p.number === linkedPr) : null;
+    const links = DELIVERY_LINKS.get(a.key);
+    const linkedPrs = links.prs.map(n=>observerState.prs.find(p=>p.number===n)).filter(Boolean);
+    const linkedIssues = links.issues.map(n=>observerState.issues.find(issue=>issue.number===n)).filter(Boolean);
+    const suggestions = suggestLinks(a,observerState,links);
     a.observation = {
       activity: {
         state: activity, source: hook?.fresh ? "claude-hook" : external ? "agent-heartbeat" :
@@ -534,11 +537,14 @@ function enrichAgentObservations(out, observerState, time) {
         source: external && a.detailUpdatedAt ? "agent-reported" : "unreported"
       },
       delivery: {
-        prNumber: linkedPr,
-        pr: matching || null,
-        status: linkedPr ? matching ? "linked" : "unavailable" : "unlinked",
-        source: "github-read-only",
-        checkedAt: observerState.checkedAt
+        links, prs:linkedPrs, issues:linkedIssues, suggestions,
+        missingPrNumbers:links.prs.filter(n=>!linkedPrs.some(p=>p.number===n)),
+        missingIssueNumbers:links.issues.filter(n=>!linkedIssues.some(issue=>issue.number===n)),
+        // Backward compatibility for older 3D clients while they reload.
+        prNumber:links.prs[0]||null, pr:linkedPrs[0]||null,
+        status:links.prs.length||links.issues.length?"linked":"unlinked",
+        source:"github-read-only + user-confirmed links",
+        checkedAt:observerState.checkedAt
       }
     };
   }
@@ -615,7 +621,9 @@ function snapshot() {
     observer: { repo: observerState.repo, status: observerState.status,
       checkedAt: observerState.checkedAt, attemptAt: observerState.attemptAt,
       error: observerState.error, refreshSeconds: observerState.refreshSeconds,
-      prCount: observerState.prs.length }, money: moneyOf(week, t) };
+      prCount: observerState.prs.filter(p=>p.state==="open").length,
+      issueCount: observerState.issues.filter(i=>i.state==="open").length,
+      windowPrCount:observerState.prs.length, windowIssueCount:observerState.issues.length }, money: moneyOf(week, t) };
 }
 
 // ---------- vòng lặp ----------
@@ -735,33 +743,55 @@ async function registerChatSession(req, res) {
     if (!res.headersSent) sendError(500, "Không thể lưu phiên: " + String(e?.code || "unknown"));
   }
 }
-// Associate a PR with a session only when explicitly requested by the user.
-// This is attribution, not evidence that the agent is currently running.
+// Explicit, user-confirmed multi PR/Issue links. No delivery metadata
+// can mark an agent as active or claim an agent owns the referenced work.
 async function linkObserverPr(req, res) {
-  const reply = (code, body) => {
-    res.writeHead(code, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+  const reply=(code,body)=>{
+    res.writeHead(code,{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"});
     res.end(JSON.stringify(body));
   };
   try {
-    let raw = "";
-    for await (const chunk of req) {
-      raw += chunk.toString("utf8");
-      if (raw.length > 1500) return reply(413, { error: "Request too large" });
+    let raw="";
+    for await(const chunk of req) {
+      raw+=chunk.toString("utf8");
+      if(raw.length>1800)return reply(413,{error:"Request too large"});
     }
-    const body = JSON.parse(raw || "{}");
-    const session = String(body.session || "");
-    const pr = body.pr == null ? null : Number(body.pr);
-    if (!/^(?:[wg]-[a-f0-9]{12}|[cx]-[a-f0-9]{8})$/i.test(session))
-      return reply(400, { error: "Invalid session ID" });
-    const agent = snapshot().agents.find((a) => a.key === session);
-    if (!agent) return reply(404, { error: "Session not found" });
-    if (pr !== null && (!Number.isSafeInteger(pr) || !OBSERVER.read().prs.some((p) => p.number === pr)))
-      return reply(400, { error: "PR not found in current observer window; refresh GitHub first" });
-    DELIVERY_LINKS.set(session, pr);
-    return reply(200, { ok: true, session, pr, source: "user-assigned" });
-  } catch (e) {
-    console.error("Observer link:", String(e?.code || e?.message).slice(0, 100));
-    return reply(e instanceof SyntaxError ? 400 : 500, { error: "Could not save observer link" });
+    const body=JSON.parse(raw||"{}");
+    const session=String(body.session||"");
+    if(!/^(?:[wg]-[a-f0-9]{12}|[cx]-[a-f0-9]{8})$/i.test(session))
+      return reply(400,{error:"Invalid session ID"});
+    const agent=snapshot().agents.find(a=>a.key===session);
+    if(!agent)return reply(404,{error:"Session not found"});
+    const observer=OBSERVER.read();
+    // Legacy API: {session, pr:number|null} replaces the single PR link,
+    // but preserves linked Issues when the old browser is still open.
+    if(!Object.hasOwn(body,"type")&&Object.hasOwn(body,"pr")) {
+      const n=body.pr===null?null:Number(body.pr);
+      if(n!==null&&(!Number.isSafeInteger(n)||observer.status!=="ok"||
+        !observer.prs.some(pr=>pr.number===n)))
+        return reply(400,{error:"PR not found in current observer window"});
+      const links=DELIVERY_LINKS.set(session,n);
+      return reply(200,{ok:true,session,links,source:"user-confirmed"});
+    }
+    const type=String(body.type||"");
+    const operation=String(body.operation||"add");
+    const number=Number(body.number);
+    if(!["pr","issue"].includes(type)||!["add","remove"].includes(operation)||
+       !Number.isSafeInteger(number)||number<1||number>9999999)
+      return reply(400,{error:"Invalid PR/Issue operation"});
+    if(operation==="add") {
+      if(observer.status!=="ok")return reply(503,{error:"GitHub source unavailable, cannot verify item"});
+      const available=type==="pr"?observer.prs:observer.issues;
+      if(!available.some(item=>item.number===number))
+        return reply(400,{error:"Item not found in current GitHub window. Refresh observer or use an item from the list."});
+    }
+    const links=operation==="add"?DELIVERY_LINKS.add(session,type,number):
+      DELIVERY_LINKS.remove(session,type,number);
+    return reply(200,{ok:true,session,links,source:"user-confirmed"});
+  } catch(e) {
+    console.error("Observer link:",String(e?.code||e?.message).slice(0,100));
+    return reply(e instanceof SyntaxError||e instanceof TypeError?400:
+      e instanceof RangeError?409:500,{error:"Could not save observer link"});
   }
 }
 http.createServer((req, res) => {

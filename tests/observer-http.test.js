@@ -61,6 +61,19 @@ test("observer endpoint is local-only, read-only, and keeps liveness distinct fr
   const bad=await fetch(base+"/api/observer/link",{method:"POST",
     headers:{"Content-Type":"application/json"},body:JSON.stringify({session:record.key,pr:1941})});
   assert.equal(bad.status,400);
+  const notChecked=await fetch(base+"/api/observer/link",{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({session:record.key,type:"issue",number:1939,operation:"add"})});
+  assert.equal(notChecked.status,503);
+  const removed=await fetch(base+"/api/observer/link",{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({session:record.key,type:"issue",number:1939,operation:"remove"})});
+  assert.equal(removed.status,200);
+  assert.deepEqual((await removed.json()).links,{prs:[],issues:[]});
+  const invalid=await fetch(base+"/api/observer/link",{method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({session:record.key,type:"pr",number:-12,operation:"add"})});
+  assert.equal(invalid.status,400);
   const attacker=await fetch(base+"/api/observer/link",{method:"POST",
     headers:{"Content-Type":"application/json",Origin:"https://evil.example"},
     body:JSON.stringify({session:record.key,pr:1941})});

@@ -770,7 +770,7 @@ $("chat-copy").addEventListener("click", async () => {
 let directorySignature = "";
 function renderDirectory(s) {
   const members = s.agents || [];
-  const sig = focusedRoom + "|" + (selected || "") + "|" + members.map((a) => [a.key,a.name,a.room,a.roomSource,a.status,a.flag,a.connection,a.lastHeartbeat,a.task,a.detailUpdatedAt].join(":")).join("|");
+  const sig = focusedRoom + "|" + (selected || "") + "|" + members.map((a) => [a.key,a.name,a.room,a.roomSource,a.status,a.flag,a.connection,a.lastHeartbeat,a.task,a.detailUpdatedAt,(a.observation?.delivery?.links?.prs||[]).join(","),(a.observation?.delivery?.links?.issues||[]).join(",")].join(":")).join("|");
   $("dir-summary").textContent = members.filter((a) => a.platform !== "human").length + " phiên AI";
   for (const [id, val] of dirButtons) {
     val.count.textContent = String(members.filter((a) => a.room === id).length);
@@ -793,6 +793,9 @@ function renderDirectory(s) {
       : (agent.platform === "work" || agent.platform === "chatgpt") ? OfficeRooms.label(agent.room) + " · " + badgeOf(agent)[0] + (agent.connection === "stale" ? age : "")
       : OfficeRooms.label(agent.room) + " · " + (agent.status === "active" ? "Đang làm" : agent.status === "idle" ? "Chờ" : "Tạm nghỉ");
     meta.append(h("strong", "", agent.name), h("small", "", stateLabel));
+    const linkedPRs = agent.observation?.delivery?.links?.prs?.length || 0;
+    const linkedIssues = agent.observation?.delivery?.links?.issues?.length || 0;
+    if (linkedPRs || linkedIssues) meta.append(h("small", "dir-task", linkedPRs + " PR · " + linkedIssues + " Issue đã gán"));
     if (agent.task) meta.append(h("small", "dir-task", (agent.connection === "live" && agent.status === "active" ? "Đang báo: " : "Báo gần nhất: ") + agent.task));
     b.append(dot, meta);
     b.addEventListener("click", () => {
@@ -1019,19 +1022,38 @@ function showCard() {
       (ob.activity?.observedAt ? " · " + ago(ob.activity.observedAt) + " trước" : "")));
     box.appendChild(h("div", "m", "Công việc (lần cuối được báo): " +
       (ob.work?.task || "Chưa có") + " · " + (ob.work?.state || "unknown")));
-    const linked = ob.delivery?.pr;
-    if (linked) {
+    const links = ob.delivery?.links || { prs: [], issues: [] };
+    const prs = ob.delivery?.prs || [], issues = ob.delivery?.issues || [];
+    const appendItems = (kind, numbers, items) => {
+      if (!numbers.length) return;
       const block = h("div", "work-field");
-      block.append(h("strong", "", "PR #" + linked.number + " · nguồn GitHub, gán thủ công"),
-        h("p", "", linked.title + " — " + (linked.ci?.label || "Chưa có CI trong cửa sổ")));
-      const aLink = h("a", "", "Mở PR");
-      if (linked.url) { aLink.href = linked.url; aLink.target = "_blank"; aLink.rel = "noopener noreferrer"; }
-      else aLink.textContent = "PR chưa có đường dẫn";
-      block.append(aLink);box.append(block);
-    } else {
-      box.appendChild(h("div", "m", "Chưa gán PR: không suy luận chủ sở hữu từ tên phiên."));
+      block.appendChild(h("strong", "", (kind === "pr" ? "PR" : "Issue") +
+        " đã gán (" + numbers.length + ") · nguồn GitHub"));
+      for (const n of numbers.slice(0, 7)) {
+        const item = items.find(x => x.number === n);
+        const line = h("p", "", "#" + n + " · " + (item?.title || "Không thuộc cửa sổ quan sát gần đây"));
+        if (item?.url) {
+          const aLink = h("a", "", "#" + n + " · " + item.title);
+          aLink.href = item.url; aLink.target = "_blank"; aLink.rel = "noopener noreferrer";
+          line.textContent = ""; line.appendChild(aLink);
+        }
+        if (item?.state) line.appendChild(document.createTextNode(" · " + item.state));
+        if (kind === "pr" && item?.ci?.label)
+          line.appendChild(document.createTextNode(" · " + item.ci.label));
+        block.appendChild(line);
+      }
+      if (numbers.length > 7) block.appendChild(h("div", "m", "+" + (numbers.length - 7) + " mục khác · xem Agent Observer"));
+      box.appendChild(block);
+    };
+    appendItems("pr", links.prs || [], prs);
+    appendItems("issue", links.issues || [], issues);
+    if (!(links.prs?.length || links.issues?.length)) {
+      box.appendChild(h("div", "m", "Chưa gán PR/Issue: không tự đoán chủ sở hữu từ tên phiên."));
     }
-    const more = h("a", "", "Mở Agent Observer · gán PR / xem CI");
+    if (ob.delivery?.suggestions?.length)
+      box.appendChild(h("div", "m", ob.delivery.suggestions.length +
+        " gợi ý từ mã task/branch (chưa gán, cần người duyệt)."));
+    const more = h("a", "", "Mở Agent Observer · gán nhiều PR / Issue");
     more.href = "observer.html";
     box.appendChild(more);info.appendChild(box);
   }
