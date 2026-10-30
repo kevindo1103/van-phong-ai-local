@@ -75,11 +75,23 @@ test("local UI registers a new ChatGPT alias and room, but does not fake a heart
   assert.equal(entry.lastHeartbeat,null);
   const second=await (await post({name:"ChatGPT - Product consultation",room:"stu"})).json();
   assert.notEqual(second.key,created.key);
-  assert.equal(work.list(dataDir).length,2);
+  const slashResponse=await post({name:"B04/B05 fixer",room:"bob"});
+  assert.equal(slashResponse.status,201);
+  const slashSession=await slashResponse.json();
+  assert.equal(slashSession.title,"B04/B05 fixer");
+  assert.equal(slashSession.room,"bob");
+  const missing=await fetch(base+"/api/unknown-route");
+  assert.equal(missing.status,404);
+  assert.match(missing.headers.get("content-type"),/application\/json/);
+  assert.match((await missing.json()).error,/API/);
+  assert.equal(work.list(dataDir).length,3);
   const html=await (await fetch(base+"/")).text();
   for(const id of ["chat-add-toggle","chat-add-form","chat-add-room","chat-add-command"])
     assert.ok(html.includes('id="'+id+'"'),"missing "+id);
   assert.match(html,/chatHeartbeatCommand/);
+  assert.match(html,/const raw = await response\.text\(\)/);
+  assert.match(html,/response\.status === 404/);
+  assert.match(html,/state refresh deferred/);
 });
 
 test("transient EPERM in atomic replacement is retried without changing NTFS permissions", (t) => {

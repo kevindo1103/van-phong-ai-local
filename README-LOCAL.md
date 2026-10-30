@@ -68,6 +68,7 @@ Cậu có thể thêm phiên ngay trên giao diện 3D:
 1. Mở http://127.0.0.1:7788 và nhấn **+ Thêm phiên ChatGPT** ở bảng bên phải.
 2. Nhập tên phiên (ví dụ ChatGPT - Báo cáo B05), chọn phòng và nhấn **Đăng ký phiên**.
 3. Robot xuất hiện với trạng thái **Chưa kết nối**. Bấm **Sao chép lệnh** để lấy lệnh heartbeat với mã local đã sinh.
+   - Nếu gặp **HTTP 404 khi đăng ký**: server Node hiện tại chưa nạp đúng route. Khởi động lại `D:\AI-Office-Local\scripts\start-local.ps1` rồi tải lại trang bằng Ctrl+F5. Giao diện giờ báo lỗi HTTP cụ thể thay vì `Unexpected token` khi phản hồi không phải JSON.
 4. Dán lệnh đó vào cuộc trò chuyện ChatGPT muốn kết nối, yêu cầu phiên dùng công cụ Desktop Commander trên ThinkPad để chạy khi bắt đầu xử lý và báo trạng thái sau mỗi 2–3 phút. Khi hoàn thành đổi active thành done.
 
 Mỗi phiên có một **bridgeId** riêng do localhost sinh, không phải ID hội thoại thật của ChatGPT. Mã đó có thể xem lại khi bấm vào robot. Việc mở ChatGPT tab/Recents không tự động tạo heartbeat; khi công cụ chưa có quyền chạy trên ThinkPad thì robot vẫn ở trạng thái Chưa kết nối.

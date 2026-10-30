@@ -705,6 +705,11 @@ http.createServer((req, res) => {
     chat.handle(req, res, url, { CFG, DATA, agentByKey: (k) => byKey[k], onEvent: pushEvent, ht: hopthuNow }).then((r) => { if (r === false) { res.writeHead(404); res.end(); } }).catch(() => { if (!res.headersSent) { res.writeHead(500); res.end(); } });
     return;
   }
+  // API misses are JSON, never a static-file 404 plain-text response.
+  if (url.pathname.startsWith("/api/")) {
+    res.writeHead(404, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    return res.end(JSON.stringify({ error: "API không tồn tại trên phiên Văn phòng AI đang chạy (HTTP 404)." }));
+  }
   // Three.js is served locally from a strictly scoped package directory.
   const vendor = url.pathname.startsWith("/vendor/three/");
   const base = path.resolve(ROOT, vendor ? "node_modules/three" : "public");

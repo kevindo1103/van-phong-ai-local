@@ -721,11 +721,18 @@ chatForm.addEventListener("submit", async (event) => {
   submit.disabled = true;
   try {
     const response = await fetch("/api/sessions/register", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, room })
+      method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      cache: "no-store", body: JSON.stringify({ name, room })
     });
-    const data = await response.json();
-    if (!response.ok || !data.ok) throw new Error(data.error || "HTTP " + response.status);
+    // Older server versions returned plain text "không có" for an unknown API.
+    // Never surface the resulting JSON SyntaxError as an unexplained form failure.
+    const raw = await response.text();
+    let data;
+    try { data = JSON.parse(raw); } catch {
+      if (response.status === 404) throw new Error("API đăng ký chưa có trên server đang chạy (HTTP 404). Hãy khởi động lại Văn phòng AI rồi thử lại.");
+      throw new Error("Server trả HTTP " + response.status + " không phải JSON. Kiểm tra phiên server local và thử lại.");
+    }
+    if (!response.ok || !data || !data.ok) throw new Error((data && data.error) || "HTTP " + response.status);
     $("chat-add-command").textContent = chatHeartbeatCommand(data.bridgeId);
     $("chat-copy").textContent = "Sao chép lệnh";
     $("chat-add-result").hidden = false;
@@ -733,8 +740,12 @@ chatForm.addEventListener("submit", async (event) => {
     $("chat-add-toggle").setAttribute("aria-expanded", "false");
     $("chat-add-name").value = "";
     directorySignature = "";
-    const stateResponse = await fetch("/state", { cache: "no-store" });
-    if (stateResponse.ok) apply(await stateResponse.json());
+    // Registration has already succeeded. A later /state refresh failure must
+    // NOT be shown as registration failure (which could create duplicates on retry).
+    try {
+      const stateResponse = await fetch("/state", { cache: "no-store" });
+      if (stateResponse.ok) apply(await stateResponse.json());
+    } catch (refreshError) { console.warn("Session created; state refresh deferred", refreshError); }
   } catch (error) {
     msg.textContent = "Không đăng ký được: " + error.message;
   } finally { submit.disabled = false; }
