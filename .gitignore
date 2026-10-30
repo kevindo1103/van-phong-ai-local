@@ -8,3 +8,8 @@ node_modules/
 
 # sổ điều phối của từng đội (việc, hòm thư, lượt DEV…) — dữ liệu riêng, không đưa lên GitHub
 data/
+
+# Third-party Sketchfab Standard models: local use only; do not redistribute in GitHub.
+public/assets/*.glb
+public/assets/*.gltf
+public/assets/*.bin

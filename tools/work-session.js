@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 "use strict";
-// Lightweight opt-in heartbeat bridge for ChatGPT Work agents using Desktop Commander.
-// This is NOT a ChatGPT API nor a polling mechanism for cloud conversations.
+// Opt-in metadata bridge for ChatGPT Work and ChatGPT Chat. No cloud-session polling.
 const path = require("node:path");
 const { loadConfig } = require("../lib/config");
 const work = require("../lib/work-sessions");
@@ -13,21 +12,54 @@ function opt(name) {
   const i = args.indexOf("--" + name);
   return i < 0 ? null : args[i + 1] || null;
 }
+function current(id, kind) {
+  const key = work.makeKey(id, kind);
+  return work.list(cfg.dataDir).find((s) => s.key === key);
+}
+function report(entry) {
+  return {
+    key: entry.key,
+    title: entry.title,
+    platform: entry.platform,
+    room: entry.room,
+    reportedState: entry.reportedState,
+    status: entry.status,
+    connection: entry.connection,
+    lastHeartbeat: entry.lastHeartbeat,
+    ageMinutes: entry.lastHeartbeat ? Math.round((Date.now() - entry.lastHeartbeat) / 6000) / 10 : null
+  };
+}
 function usage() {
-  console.log("ChatGPT Work local bridge. No ChatGPT conversation is read.");
-  console.log('  register --name "Backend - Bob — task" [--id stable-id]');
-  console.log('  heartbeat --name "Backend - Bob — task" [--id stable-id] [--state active|idle|blocked|done]');
-  console.log('  list');
-  console.log("No heartbeat = Unlinked. Heartbeat expires after five minutes.");
+  console.log("ChatGPT Work / ChatGPT Chat local bridge. No conversation content is read.");
+  console.log('  register --id project-james --name "Project - James" [--kind work|chat]');
+  console.log('  heartbeat --id project-james --state active|idle|blocked|done');
+  console.log('  status --id project-james [--kind work|chat]');
+  console.log("Heartbeat accepts --id without --name after the first registration.");
+  console.log("While a Work task is active, its agent must send a heartbeat every 2–3 minutes.");
+  console.log("Active expires after five minutes without a new heartbeat. No synthetic background activity.");
 }
 try {
+  const kind = opt("kind") || "work";
   if (command === "help") usage();
-  else if (command === "list") for (const s of work.list(cfg.dataDir)) console.log(s.key, s.name, s.roomLabel, s.connection, s.status);
-  else if (command === "register" || command === "heartbeat") {
-    const title = opt("name"), id = opt("id") || title;
-    if (!title) throw new Error("Missing --name");
-    const state = command === "heartbeat" ? (opt("state") || "active") : "unknown";
-    const entry = work.upsert(cfg.dataDir, { id, title, state, heartbeat: command === "heartbeat" });
-    console.log(JSON.stringify({ ok: true, key: entry.key, name: entry.title, signal: command === "heartbeat" ? "received" : "unlinked" }));
+  else if (command === "list") for (const s of work.list(cfg.dataDir)) console.log(JSON.stringify(report(s)));
+  else if (command === "register" || command === "heartbeat" || command === "status") {
+    const id = opt("id") || opt("name");
+    if (!id) throw new Error("Missing --id or --name");
+    const existing = current(id, kind);
+    if (command === "status") {
+      if (!existing) throw new Error("Session is not registered: " + id);
+      console.log(JSON.stringify(report(existing)));
+    } else {
+      const title = opt("name") || existing?.title;
+      if (!title) throw new Error("Unknown --id: register it once using --name");
+      const state = command === "heartbeat" ? (opt("state") || "active") : "unknown";
+      const record = work.upsert(cfg.dataDir, {
+        id, title, state, kind, heartbeat: command === "heartbeat"
+      });
+      console.log(JSON.stringify({
+        ok: true, signal: command === "heartbeat" ? "received" : "unlinked",
+        ...report(current(id, kind)), key: record.key
+      }));
+    }
   } else { usage(); process.exitCode = 1; }
-} catch(e) { console.error(e.message); process.exitCode = 1; }
+} catch (e) { console.error(e.message); process.exitCode = 1; }

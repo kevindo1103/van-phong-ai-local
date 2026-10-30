@@ -139,7 +139,7 @@ const el = (tag, attrs = {}, parent) => { const e = document.createElementNS(NS,
 const html = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const fmtT = (ms) => new Date(ms).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
 const ago = (ms) => { if (!ms) return "–"; const s = Math.max(0, (Date.now() - ms) / 1000); if (s < 60) return Math.round(s) + " giây"; if (s < 3600) return Math.round(s / 60) + " phút"; if (s < 86400) return (s / 3600).toFixed(1).replace(".", ",") + " giờ"; return Math.round(s / 86400) + " ngày"; };
-const COLOR = { claude: "var(--claude)", codex: "var(--codex)", work: "#b896ff", human: "var(--human)" };
+const COLOR = { claude: "var(--claude)", codex: "var(--codex)", work: "#b896ff", chatgpt: "#8fe8cc", human: "var(--human)" };
 
 // ----- mặt bằng -----
 const ROOMS = OfficeRooms.ROOMS;
@@ -312,7 +312,7 @@ function renderSide(s) {
   const a = s.agents.find((x) => x.key === selected);
   if (a) {
     const who = html("div", "who");
-    const sw = html("span", "badge", a.platform === "codex" ? "Codex" : a.platform === "claude" ? "Claude" : "Người");
+    const sw = html("span", "badge", a.platform === "codex" ? "Codex" : a.platform === "claude" ? "Claude" : a.platform === "work" ? "ChatGPT Work" : a.platform === "chatgpt" ? "ChatGPT Chat" : "Người");
     who.appendChild(html("b", "", a.name)); who.appendChild(sw);
     d.appendChild(who);
     const st = { active: "đang làm", idle: "đang rảnh / chờ", away: "nghỉ lâu", offline: "không đọc được nhật ký" }[a.status] || a.status;

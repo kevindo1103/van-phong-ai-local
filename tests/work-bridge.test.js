@@ -41,6 +41,33 @@ test("Work heartbeat is active only while fresh and never reads conversation con
   assert.equal(s.status,"unknown");assert.equal(s.connection,"stale");
   assert.throws(()=>work.upsert(data,{title:"Bad",state:"untrusted",heartbeat:false},now),/unknown/i);
 });
+test("idle/done/blocked retain their last reported state, while active expires", (t) => {
+  const data = fs.mkdtempSync(path.join(os.tmpdir(), "work-status-test-"));
+  t.after(() => fs.rmSync(data, {recursive:true, force:true}));
+  const clock = 1793340000000;
+  for (const state of ["active", "idle", "done", "blocked"]) {
+    work.upsert(data,{id: "session-" + state, title: "Backend - Bob",state,heartbeat:true},clock);
+  }
+  const look = (state, at) => work.list(data,at).find((x) => x.key === work.makeKey("session-" + state));
+  const late=clock + 26 * 60000;
+  assert.equal(look("active",late).status,"unknown");
+  assert.equal(look("active",late).connection,"stale");
+  for (const state of ["idle","done"]) {
+    assert.equal(look(state,late).status,"idle",state);
+    assert.equal(look(state,late).connection,"stale",state);
+    assert.equal(look(state,late).reportedState,state);
+  }
+  assert.equal(look("blocked",late).flag,null); // old blocker is not counted as a live blocker
+  assert.equal(look("blocked",late).reportedState,"blocked");
+  assert.equal(look("blocked",late).connection,"stale");
+  const nextday=clock + 24 * 60 * 60000 + 1;
+  assert.equal(look("idle",nextday).status,"unknown");
+  assert.equal(look("blocked",nextday).flag,null);
+  const record = work.upsert(data,{id:"session-idle",title:"Backend - Bob v2",state:"unknown",heartbeat:false},late);
+  assert.equal(record.state,"idle"); // re-register never erases the latest verified state
+  assert.equal(look("idle",late).status,"idle");
+});
+
 async function freePort() {
   const server = net.createServer();
   await new Promise((resolve)=>server.listen(0,"127.0.0.1",resolve));

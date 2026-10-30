@@ -45,15 +45,37 @@ Văn phòng có cầu nối Work heartbeat (chỉ ghi metadata local), theo cơ 
     cd D:\AI-Office-Local
     node tools/work-session.js list
     node tools/work-session.js heartbeat --id backend-bob --name "Backend - Bob" --state active
-    node tools/work-session.js heartbeat --id backend-bob --name "Backend - Bob" --state done
+    node tools/work-session.js heartbeat --id backend-bob --state done
+    node tools/work-session.js status --id project-james
+    node tools/work-session.js heartbeat --id project-james --state active
 
 - register --id backend-bob --name "Backend - Bob": chỉ tạo bản ghi với trạng thái **Chưa kết nối**.
 - heartbeat --state active: xác nhận phiên đang xử lý; idle, done, blocked dùng khi thay đổi trạng thái.
-- Heartbeat hiệu lực tối đa 5 phút; quá hạn hiển thị Mất tín hiệu, không tự suy luận là đang làm.
+- Heartbeat `active` chỉ có hiệu lực 5 phút; sau đó hiện **ACTIVE · CŨ** (màu trung tính và tuổi tín hiệu), không tiếp tục đếm là đang làm. Đó là trạng thái được báo lần cuối, **không** xác nhận phiên Work còn chạy.
+- Heartbeat `idle`/`done` được giữ làm **IDLE · CŨ** tối đa 24 giờ. `blocked` cũ hiển thị **BLOCKED · CŨ** nhưng không tính là blocker đang hoạt động; hết 24 giờ chuyển về trạng thái chưa rõ. Các trạng thái cũ kèm thời điểm heartbeat cuối, không được coi là tín hiệu đang chạy.
 - Mỗi session dùng một --id ổn định riêng: backend-bob-b04, backend-bob-inventory cho nhiều phiên Backend.
 - Chỉ lưu tên, mã session, trạng thái, thời điểm; không đọc nội dung chat, file dự án hoặc token.
-- Work agent có Remote Desktop Commander trên ThinkPad phải tự gọi heartbeat khi bắt đầu, trong lúc làm việc (mỗi 2–3 phút) và lúc kết thúc. Đây không phải API tự động truy cập mọi phiên ChatGPT cloud.
+- Work agent có Remote Desktop Commander trên ThinkPad phải tự gọi heartbeat khi bắt đầu, trong lúc làm việc (mỗi 2–3 phút) và lúc kết thúc. Ví dụ James: `node D:\AI-Office-Local\tools\work-session.js heartbeat --id project-james --state active`. Sau khi đăng ký, chỉ cần ID và state, không cần nhắc lại tên. Nếu agent đang thực hiện một tool call kéo dài thì không thể báo heartbeat trong khi chính tool call đó đang chặn; UI sẽ ghi `ACTIVE · CŨ` cho tới lần cập nhật tiếp theo. Đây không phải API tự động truy cập trạng thái các phiên ChatGPT cloud.
 - Các tên trong ảnh được đăng ký local ở data/work-sessions/ với trạng thái Chưa kết nối; không được xem là bằng chứng chúng đang hoạt động.
+
+## Theo dõi ChatGPT Chat (riêng từng cuộc trò chuyện)
+
+Cầu nối có loại session chat bên cạnh Work (work là mặc định). Một cuộc trò chuyện cần ID ổn định và khác nhau giữa các phiên. Không suy đoán ID thật từ tên hoặc tự đọc Recents.
+
+    node tools/work-session.js register --kind chat --id chat-office-20261030 --name "ChatGPT · Office Assistant"
+    node tools/work-session.js heartbeat --kind chat --id chat-office-20261030 --state active
+    node tools/work-session.js status --kind chat --id chat-office-20261030
+
+Đây chỉ là alias local, không phải ID thật của cuộc trò chuyện từ ChatGPT. Có thể chuyển phòng từ giao diện. Không tự đánh dấu đang làm chỉ vì người dùng mở tab. ACTIVE sẽ hết hạn sau 5 phút nếu không có heartbeat mới.
+
+## Robot 3D từ file GLB của chủ văn phòng
+
+- Đã cài local: `D:\AI-Office-Local\public\assets\ai_robot.glb`. Model được tải một lần bằng GLTFLoader rồi nhân bản cho mỗi session.
+- Fallback: nếu thiếu / tải lỗi GLB, ứng dụng tự quay về robot hình khối cũ, không làm hỏng văn phòng.
+- Model: **AI Robot**, tác giả **Noores** (https://sketchfab.com/nuks). Nguồn: https://sketchfab.com/3d-models/ai-robot-f7c4e4dcd1594e3e92b2d35a4ec8a93a
+- Trong file GLB ghi **Sketchfab Standard**. Bản GLB chỉ lưu local và đã được gitignore, **không phát hành file model trong GitHub public fork**.
+- Mỗi robot có badge trên đầu: ACTIVE, IDLE, BLOCKED, CHỜ DEV, MẤT TÍN HIỆU hoặc CHƯA KẾT NỐI. IDLE/DONE và BLOCKED cũ được phân biệt bằng chữ CŨ và mốc heartbeat; tên phiên không tự làm robot active.
+- Khi setup ở máy mới, cần tự chép model được cấp quyền vào thư mục assets, hoặc để ứng dụng chạy với robot mặc định.
 
 ## Góc nhìn và cách dùng giao diện
 
@@ -63,6 +85,10 @@ Văn phòng có cầu nối Work heartbeat (chỉ ghi metadata local), theo cơ 
 - Bấm **Toàn cảnh** để xem lại cả ba màn hình dashboard trong không gian 3D. Các nút Công việc / Xem màn hình lớn / Nội quy vẫn mở dashboard toàn màn hình như trước.
 - Các nhãn tên robot được thu gọn ở góc nhìn tổng quan để không chồng chữ; khi chọn một phòng, nhãn của các phiên trong phòng đó sẽ hiển thị đầy đủ.
 - Nếu máy yếu, mở `http://127.0.0.1:7788/2d.html` để xem sơ đồ 2D.
+
+## Nội quy AGENTS.md ưu tiên
+
+Thứ tự đọc: `+"`"+String.raw`config.rulesFile`+"`"+String.raw` chỉ định trực tiếp → `+"`"+String.raw`AGENTS.md`+"`"+String.raw` trong thư mục dự án → `+"`"+String.raw`~/.codex/AGENTS.md`+"`"+String.raw` của người dùng → `+"`"+String.raw`CLAUDE.md`+"`"+String.raw` trong dự án → `+"`"+String.raw`data/NOI-QUY.md`+"`"+String.raw` làm nguồn dự phòng. Văn phòng chỉ đọc file, không chèn nội quy mẫu vào các repo của đội.
 
 ## An toàn mặc định
 

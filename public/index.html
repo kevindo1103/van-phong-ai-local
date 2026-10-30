@@ -52,6 +52,17 @@ body.zoomed .bar{top:auto;bottom:14px;left:auto;right:14px;z-index:30}
 .lb .r{font-size:9px;color:#9aa3ad;white-space:nowrap;text-shadow:0 1px 3px #000}
 .lb.sel .n{color:var(--gold)}
 .lb .b{display:inline-block;margin-bottom:4px;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(5,6,8,.85);border:1px solid;white-space:nowrap}
+.agent-status{display:inline-flex;align-items:center;justify-content:center;gap:5px;margin:0 auto 5px;padding:4px 9px;border-radius:999px;border:1px solid rgba(182,198,220,.25);background:rgba(19,25,36,.94);color:#d5dfeb;box-shadow:0 3px 12px rgba(0,0,0,.55);font:700 10px "Be Vietnam Pro",system-ui,sans-serif;letter-spacing:.035em;white-space:nowrap;pointer-events:none}
+.agent-status:before{content:"";width:7px;height:7px;flex:0 0 7px;border-radius:50%;background:currentColor;opacity:.95}
+.agent-status.state-active{background:rgba(13,63,44,.94);border-color:#50cc96;color:#7ce5ad}
+.agent-status.state-active:before{animation:p 1.4s infinite}
+.agent-status.state-idle{background:rgba(64,48,22,.94);border-color:#e0b55b;color:#ffda86}
+.agent-status.state-blocked{background:rgba(83,25,28,.95);border-color:#e78c96;color:#ffa8ad}
+.agent-status.state-stale,.agent-status.state-unlinked,.agent-status.state-unknown{background:rgba(28,33,43,.93);border-color:#69788d;color:#9eabba}
+.agent-status.state-away{background:rgba(29,34,43,.93);border-color:#627083;color:#98a3b5}
+.agent-status.state-human{background:rgba(87,72,33,.9);border-color:#ecc970;color:#ffe4a0}
+.agent-name-side{display:inline-flex;max-width:112px;align-items:center;padding:4px 7px;border-radius:9px;background:rgba(9,15,26,.93);color:#f4f7fc;border:1px solid rgba(201,221,241,.3);box-shadow:0 3px 13px rgba(0,0,0,.5);font:700 10px "Be Vietnam Pro",system-ui,sans-serif;line-height:1.3;white-space:nowrap;cursor:pointer;pointer-events:auto;user-select:none}
+.agent-name-side:hover,.agent-name-side.selected{border-color:#ecc970;color:#ffe4a0;background:rgba(40,33,19,.96)}
 .rl{font-size:13px;letter-spacing:.035em;color:#f4f7fc;font-weight:700;white-space:nowrap;pointer-events:none;text-shadow:none;background:rgba(10,18,28,.9);border:1px solid rgba(210,225,245,.24);border-radius:9px;padding:6px 10px;box-shadow:0 4px 12px rgba(0,0,0,.3)}
 .lb.summary .n,.lb.summary .r,.lb.summary .say,.lb.summary .b{display:none!important}
 .lb.summary{pointer-events:none}
@@ -130,7 +141,7 @@ body.zoomed .bar .pill{display:none}
   <div id="dir-sessions"></div>
 </aside>
 <div class="hint" id="hint">Kéo để xoay · chụm/cuộn để phóng to · bấm vào tên một người để xem họ đang làm gì</div>
-<div class="links"><a href="tongquan.html">Tổng quan</a><a href="hopthu.html">Hòm thư</a><a href="hieusuat.html">Đánh giá nhân sự</a><a href="board.html">Mở bảng điều hành toàn màn hình</a><a href="2d.html">Sơ đồ 2D</a></div>
+<div class="links"><a href="tongquan.html">Tổng quan</a><a href="hopthu.html">Hòm thư</a><a href="hieusuat.html">Đánh giá nhân sự</a><a href="board.html">Mở bảng điều hành toàn màn hình</a><a href="2d.html">Sơ đồ 2D</a><a href="https://sketchfab.com/3d-models/ai-robot-f7c4e4dcd1594e3e92b2d35a4ec8a93a" target="_blank" rel="noopener noreferrer" title="AI Robot by Noores · Sketchfab Standard">Robot 3D: Noores</a></div>
 <script src="rooms.js"></script>
 <script type="module">
 import * as THREE from "three";
@@ -138,13 +149,32 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { CSS2DRenderer, CSS2DObject } from "three/addons/renderers/CSS2DRenderer.js";
 import { CSS3DRenderer, CSS3DObject } from "three/addons/renderers/CSS3DRenderer.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 
 const $ = (id) => document.getElementById(id);
 const h = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const ago = (ms) => { if (!ms) return "–"; const s = Math.max(0, (Date.now() - ms) / 1000); if (s < 60) return Math.round(s) + " giây"; if (s < 3600) return Math.round(s / 60) + " phút"; return (s / 3600).toFixed(1).replace(".", ",") + " giờ"; };
 const short = (n) => n.split(" · ")[0];
-const PCOL = { claude: 0xd9734a, codex: 0x3f8fd9, work: 0xb896ff, human: 0xecc970 };
+// Show a compact side label without cutting through Unicode surrogate pairs.
+const robotShortName = (name) => { const chars = Array.from(String(name || "").trim()); return chars.length > 10 ? chars.slice(0, 10).join("") + "..." : chars.join(""); };
+const PCOL = { claude: 0xd9734a, codex: 0x3f8fd9, work: 0xb896ff, chatgpt: 0x8fe8cc, human: 0xecc970 };
 const SC = { ok: 0x7ccf9b, warn: 0xecc970, bad: 0xe8a39b, idle: 0x3a4048, off: 0x1c1f24 };
+const BADGES = { active: ["ACTIVE", "active"], idle: ["IDLE", "idle"], blocked: ["BLOCKED", "blocked"],
+  waiting: ["CHỜ DEV", "idle"], unlinked: ["CHƯA KẾT NỐI", "unlinked"], stale: ["MẤT TÍN HIỆU", "stale"],
+  away: ["AWAY", "away"], unknown: ["CHƯA RÕ", "unknown"], human: ["CEO", "human"] };
+function badgeOf(a) {
+  if (a.platform === "human") return BADGES.human;
+  if ((a.platform === "work" || a.platform === "chatgpt") && a.connection === "unlinked") return BADGES.unlinked;
+  if ((a.platform === "work" || a.platform === "chatgpt") && a.connection === "stale") {
+    if (a.reportedState === "blocked") return ["BLOCKED · CŨ", "stale"];
+    if (a.status === "idle") return ["IDLE · CŨ", "stale"];
+    if (a.reportedState === "active") return ["ACTIVE · CŨ", "stale"];
+    return BADGES.stale;
+  }
+  if (a.flag === "blocked") return BADGES.blocked;
+  if (a.flag === "waiting") return BADGES.waiting;
+  return BADGES[a.status] || BADGES.unknown;
+}
 
 // Ba lớp vẽ: trang HTML của màn hình lớn (dưới) · WebGL có lỗ trong suốt (giữa) · nhãn tên (trên).
 const cssR = new CSS3DRenderer(); $("css3d").appendChild(cssR.domElement);
@@ -371,6 +401,35 @@ function buildRacks(cs) {
 
 // ---------- nhân vật ----------
 const bots = {}; let selected = null;
+// The GLB is an optional locally installed asset. If missing, keep procedural robots.
+let loadedRobot = null;
+document.documentElement.dataset.robotModel = "loading";
+function mountRobotModel(bot) {
+  if (!loadedRobot || bot.modelRig) return;
+  const model = loadedRobot.clone(true);
+  // The Sketchfab model faces +Z; flip locally so its face is visible from the office camera.
+  model.rotation.y = Math.PI;
+  model.updateWorldMatrix(true, true);
+  const bounds = new THREE.Box3().setFromObject(model), size = new THREE.Vector3();
+  bounds.getSize(size);
+  if (bounds.isEmpty() || !Number.isFinite(size.y) || size.y < 0.00001) return;
+  // Normalize the Sketchfab object's centimeters/meters to the existing robot size.
+  const factor = 4.35 / size.y;
+  model.scale.setScalar(factor);
+  model.position.set(-((bounds.min.x + bounds.max.x) / 2) * factor,
+    -bounds.min.y * factor, -((bounds.min.z + bounds.max.z) / 2) * factor);
+  model.traverse((part) => {
+    if (!part.isMesh) return;
+    part.castShadow = true;
+    part.receiveShadow = true;
+    part.frustumCulled = true;
+  });
+  const rig = new THREE.Group();
+  rig.add(model);
+  bot.g.add(rig);
+  bot.modelRig = rig;
+  for (const part of bot.fallbackVisuals) part.visible = false;
+}
 function makeBot(a) {
   const g = new THREE.Group();
   const shell = std(PCOL[a.platform], { roughness: .28, metalness: .35 });
@@ -384,18 +443,41 @@ function makeBot(a) {
   const bulbMat = new THREE.MeshBasicMaterial({ color: 0x3a4048 }); const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), bulbMat); bulb.position.y = 4.38; g.add(bulb);
   const arms = []; for (const sx of [-1, 1]) { const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.55, 4, 10), shell); arm.position.set(sx * 0.95, 1.7, 0); g.add(arm); arms.push(arm); }
   if (a.platform === "human") { const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.42, 0.35, 6, 1, true), std(0xecc970, { emissive: 0xecc970, emissiveIntensity: .4, metalness: .8, roughness: .2, side: THREE.DoubleSide })); crown.position.y = 3.85; g.add(crown); }
+  const fallbackVisuals = [...g.children]; // hidden only after the GLB loads successfully
   const ringM = new THREE.MeshBasicMaterial({ color: 0x3a4048, side: THREE.DoubleSide, transparent: true, opacity: .95 });
   const ring = new THREE.Mesh(new THREE.RingGeometry(1.3, 1.55, 48), ringM); ring.rotation.x = -Math.PI / 2; ring.position.y = 0.2; g.add(ring);
   const shadow = new THREE.Mesh(new THREE.CircleGeometry(1.1, 24), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: .45 })); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.17; g.add(shadow);
   const subs = new THREE.Group(); g.add(subs);
   const lab = h("div", "lb"); const bub = h("div", "b"); bub.style.display = "none"; const says = h("div");
-  lab.append(says, bub, h("div", "n", short(a.name)), h("div", "r", a.role));
+  const statusBadge = h("div", "agent-status state-unknown", "CHƯA RÕ");
+  lab.append(says, bub, statusBadge, h("div", "n", short(a.name)), h("div", "r", a.role));
   lab.addEventListener("click", () => { selected = a.key; showCard(); });
   const lo = new CSS2DObject(lab); lo.position.y = 5.0; g.add(lo);
+  // Always-visible name beside the robot. Keep the status badge above its head.
+  const sideName = h("div", "agent-name-side", robotShortName(a.name));
+  sideName.title = a.name;
+  sideName.addEventListener("click", () => { selected = a.key; showCard(); if (last) renderDirectory(last); });
+  const sideNameObject = new CSS2DObject(sideName);
+  sideNameObject.center.set(0, 0.5); // label starts to the right, rather than centering on the robot
+  scene.add(sideNameObject); // outside the rotating robot group: always stays to the screen-right
   g.scale.setScalar(1.45); g.traverse((m) => { if (m.isMesh && m.material !== ringM) m.castShadow = true; }); scene.add(g);
   const hm = HOME[a.key] || [600, 400]; g.position.set(X(hm[0]), 0.14, Z(hm[1]));
-  return { g, body, head, visor, visorMat, eyes, arms, bulbMat, ring, ringM, subs, lab, bub, says, target: g.position.clone(), moving: false };
+  const bot = { g, body, head, visor, visorMat, eyes, arms, bulbMat, ring, ringM, subs, lab, bub,
+    says, statusBadge, sideName, nameTag: sideNameObject, fallbackVisuals, modelRig: null, target: g.position.clone(), moving: false };
+  mountRobotModel(bot);
+  return bot;
 }
+
+// Asset stays on the owner's ThinkPad; the public GitHub fork carries only loader code.
+const robotLoader = new GLTFLoader();
+robotLoader.load("/assets/ai_robot.glb", (gltf) => {
+  loadedRobot = gltf.scene;
+  document.documentElement.dataset.robotModel = "loaded";
+  for (const bot of Object.values(bots)) mountRobotModel(bot);
+}, undefined, (error) => {
+  document.documentElement.dataset.robotModel = "fallback";
+  console.warn("Local AI robot GLB unavailable; using default procedural robots.", error);
+});
 
 // ---------- tin nhắn bay ----------
 const flights = [];
@@ -577,7 +659,7 @@ for (const room of directoryRooms) {
 let directorySignature = "";
 function renderDirectory(s) {
   const members = s.agents || [];
-  const sig = focusedRoom + "|" + (selected || "") + "|" + members.map((a) => [a.key,a.name,a.room,a.roomSource,a.status,a.flag].join(":")).join("|");
+  const sig = focusedRoom + "|" + (selected || "") + "|" + members.map((a) => [a.key,a.name,a.room,a.roomSource,a.status,a.flag,a.connection,a.lastHeartbeat].join(":")).join("|");
   $("dir-summary").textContent = members.filter((a) => a.platform !== "human").length + " phiên AI";
   for (const [id, val] of dirButtons) {
     val.count.textContent = String(members.filter((a) => a.room === id).length);
@@ -595,8 +677,11 @@ function renderDirectory(s) {
     const b = h("button", "dir-session" + (selected === agent.key ? " chosen" : "")); b.type = "button";
     const dot = h("span", "status-dot " + agent.status);
     const meta = h("span", "session-meta");
-    meta.append(h("strong", "", agent.name), h("small", "",
-      agent.platform === "human" ? "CEO" : agent.platform === "work" && agent.connection !== "live" ? OfficeRooms.label(agent.room) + (agent.connection === "unlinked" ? " · Chưa kết nối" : " · Mất tín hiệu") : OfficeRooms.label(agent.room) + " · " + (agent.status === "active" ? "Đang làm" : agent.status === "idle" ? "Chờ" : "Tạm nghỉ")));
+    const age = agent.lastHeartbeat ? " · " + ago(agent.lastHeartbeat) + " trước" : "";
+    const stateLabel = agent.platform === "human" ? "CEO"
+      : (agent.platform === "work" || agent.platform === "chatgpt") ? OfficeRooms.label(agent.room) + " · " + badgeOf(agent)[0] + (agent.connection === "stale" ? age : "")
+      : OfficeRooms.label(agent.room) + " · " + (agent.status === "active" ? "Đang làm" : agent.status === "idle" ? "Chờ" : "Tạm nghỉ");
+    meta.append(h("strong", "", agent.name), h("small", "", stateLabel));
     b.append(dot, meta);
     b.addEventListener("click", () => {
       selected = agent.key;
@@ -633,6 +718,7 @@ function loop() {
     else if (b.moving) { b.moving = false; b.g.rotation.y = b.meet ? Math.atan2(MT.x - b.g.position.x, MT.z - b.g.position.z) : Math.PI; }
     const walk = b.moving ? Math.sin(t * 12) : 0;
     const bob = b.moving ? Math.abs(walk) * .22 : (b.active ? Math.sin(t * 3 + k.length) * .05 : 0);
+    if (b.modelRig) b.modelRig.position.y = bob * 0.65;
     b.body.position.y = 1.55 + bob; b.head.position.y = 3.05 + bob; b.visor.position.y = 3.05 + bob;
     b.eyes.forEach((e) => { e.position.y = 3.1 + bob; e.scale.y = Math.sin(t * 1.3 + k.length * 2) > .985 ? .1 : 1; });
     b.arms[0].rotation.x = b.moving ? walk * .8 : b.active ? Math.sin(t * 14) * .35 - .6 : 0;
@@ -648,6 +734,12 @@ function loop() {
     if (u > 5) { scene.remove(f.line); scene.remove(f.to); flights.splice(i, 1); }
   }
   controls.update();
+  camera.updateMatrixWorld();
+  const viewRight = new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+  for (const bot of Object.values(bots)) {
+    bot.nameTag.position.copy(bot.g.position).addScaledVector(viewRight, 3.2);
+    bot.nameTag.position.y += 3.3;
+  }
   cssR.render(cssScene, camera); gl.render(scene, camera); lblR.render(scene, camera);
   requestAnimationFrame(loop);
 }
@@ -697,15 +789,19 @@ function apply(s) {
     const sm = screens[a.key]; if (sm) { sm.emissive.setHex(a.flag === "blocked" ? 0x7a3a34 : b.active ? 0x2f7d6a : a.status === "idle" ? 0x1d2a33 : 0x0d1014); sm.emissiveIntensity = b.active ? 1.6 : .9; }
     let label = "", col = "";
     if (b.meet && meet) { label = "🪑 đang họp"; col = MEET_KIND[meet.kind][1]; }
-    else if (a.flag === "blocked") { label = "■ bị chặn"; col = "#e8a39b"; }
-    else if (a.flag === "waiting") { label = `▲ chờ lượt DEV #${a.queuePos || ""}`; col = "#ecc970"; }
+    // Active/idle/blocked/waiting are already represented by the single badge above the robot.
     else if (a.where === "dev") { label = "◆ đang trên DEV"; col = "#ecc970"; }
     else if (a.sub) { label = `${a.sub} phiên con`; col = "#8fc0ef"; }
-    else if (a.platform === "work" && a.connection !== "live") { label = a.connection === "unlinked" ? "Chưa kết nối" : "Mất tín hiệu"; col = "#8290a4"; }
-    else if (b.active) { label = "● đang làm"; col = "#7ccf9b"; }
     b.bub.style.display = label ? "inline-block" : "none"; b.bub.textContent = label; b.bub.style.color = col; b.bub.style.borderColor = col;
+    const [badgeLabel, badgeKind] = badgeOf(a);
+    b.statusBadge.textContent = badgeLabel;
+    b.statusBadge.className = "agent-status state-" + badgeKind;
     b.lab.classList.toggle("sel", selected === a.key);
     b.lab.classList.toggle("summary", selected !== a.key && (focusedRoom === "all" || a.room !== focusedRoom));
+    const compactName = robotShortName(a.name);
+    if (b.sideName.textContent !== compactName) b.sideName.textContent = compactName;
+    if (b.sideName.title !== a.name) b.sideName.title = a.name;
+    b.sideName.classList.toggle("selected", selected === a.key);
     const want = Math.min(a.sub || 0, 6);
     while (b.subs.children.length < want) b.subs.add(new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 8), new THREE.MeshBasicMaterial({ color: PCOL[a.platform] })));
     while (b.subs.children.length > want) b.subs.remove(b.subs.children[0]);
@@ -716,13 +812,16 @@ function apply(s) {
 }
 function showCard() {
   const c = $("card"), a = last && last.agents.find((x) => x.key === selected);
-  for (const k in bots) bots[k].lab.classList.toggle("sel", k === selected);
+  for (const k in bots) {
+    bots[k].lab.classList.toggle("sel", k === selected);
+    bots[k].sideName.classList.toggle("selected", k === selected);
+  }
   if (!a) { c.style.display = "none"; return; }
   c.style.display = "block";
   let info = c.querySelector(".info"); if (!info) { info = h("div", "info"); c.prepend(info); } info.textContent = ""; // phần thông tin vẽ lại mỗi giây, ô nhắn tin giữ nguyên
   const h4 = h("h4", "", short(a.name)); const x = h("button", "", "Đóng"); x.onclick = () => { selected = null; c.style.display = "none"; showCard(); }; h4.appendChild(x); info.appendChild(h4);
-  const st = a.platform === "work" && a.connection !== "live" ? "Chưa kết nối" : a.flag === "blocked" ? "bị chặn" : a.flag === "waiting" ? `chờ lượt DEV #${a.queuePos || ""}` : a.where === "dev" ? "đang trên DEV" : { active: "đang làm", idle: "đang rảnh", away: "nghỉ lâu", offline: "không đọc được nhật ký" }[a.status];
-  info.append(h("div", "m", `${a.role} · ${a.platform === "codex" ? "Codex" : a.platform === "claude" ? "Claude" : a.platform === "work" ? "ChatGPT Work" : "Người"} · ${st}${a.lastActive ? " · hoạt động " + ago(a.lastActive) + " trước" : ""}`));
+  const st = (a.platform === "work" || a.platform === "chatgpt") ? badgeOf(a)[0] : a.flag === "blocked" ? "bị chặn" : a.flag === "waiting" ? `chờ lượt DEV #${a.queuePos || ""}` : a.where === "dev" ? "đang trên DEV" : { active: "đang làm", idle: "đang rảnh", away: "nghỉ lâu", offline: "không đọc được nhật ký" }[a.status];
+  info.append(h("div", "m", `${a.role} · ${a.platform === "codex" ? "Codex" : a.platform === "claude" ? "Claude" : a.platform === "work" ? "ChatGPT Work" : a.platform === "chatgpt" ? "ChatGPT Chat" : "Người"} · ${st}${a.lastActive ? (a.platform === "work" || a.platform === "chatgpt" ? " · heartbeat " : " · hoạt động ") + ago(a.lastActive) + " trước" : ""}`));
   if (a.lastText) info.appendChild(h("p", "", "“" + a.lastText + "”"));
   if (!a.ceo) {
     info.appendChild(h("div", "m", "Phòng: " + OfficeRooms.label(a.room) +
@@ -758,8 +857,8 @@ function showCard() {
     const tools = c.querySelector(".room-tools");
     if (tools) tools.remove();
   }
-  if (a.platform === "work") {
-    info.appendChild(h("p", "m", a.connection === "live" ? "Có heartbeat từ phiên Work." : "Work session chưa phát heartbeat. Không thể khẳng định đang chạy chỉ từ tên Recents."));
+  if (a.platform === "work" || a.platform === "chatgpt") {
+    info.appendChild(h("p", "m", a.connection === "live" ? "Heartbeat mới nhất đã nhận." : a.connection === "unlinked" ? "Chưa nhận heartbeat từ phiên này; tiêu đề không chứng minh đang chạy." : "Heartbeat đã quá hạn 5 phút. Đây chỉ là trạng thái cuối được báo, không xác nhận phiên còn chạy."));
   } else window.ChatBox && ChatBox.mount(c, a);
 }
 window.thuTin = (from, to, title, kind = "msg") => handle({ t: Date.now(), kind, from, to, title }, true); // thử hiệu ứng tin nhắn
