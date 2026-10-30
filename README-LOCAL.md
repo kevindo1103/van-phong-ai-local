@@ -34,6 +34,15 @@ Tên chỉ nhắc từ Backend/QC/Infra ở giữa câu (không có prefix) **kh
 
 **Gán thủ công:** nhấn vào session trong văn phòng 3D hoặc sơ đồ 2D rồi chọn phòng. Mapping được lưu tại `data/session-rooms.json` trên ThinkPad, không đẩy lên GitHub. Chọn **Tự phân phòng lại theo prefix** trong 3D để xóa gán thủ công. Các session mang trạng thái `DEV` hoặc `chờ DEV` có thể tạm di chuyển đến khu DEV nhưng phòng sở hữu vẫn giữ nguyên.
 
+## Góc nhìn và cách dùng giao diện
+
+- Mở `http://127.0.0.1:7788`: mặc định là **Văn phòng 3D** phóng lớn, không tải ba màn hình dashboard ở phía sau để giảm rối và tiết kiệm tài nguyên.
+- Bảng **Đội AI · Phòng ban** bên phải: xem số phiên mỗi phòng; bấm tên phòng để camera phóng to. Bấm từng session để xem trạng thái, chọn phòng thủ công.
+- Bấm **Hiện tất cả** (hoặc nút **Văn phòng** góc trái) để quay về toàn bộ các phòng.
+- Bấm **Toàn cảnh** để xem lại cả ba màn hình dashboard trong không gian 3D. Các nút Công việc / Xem màn hình lớn / Nội quy vẫn mở dashboard toàn màn hình như trước.
+- Các nhãn tên robot được thu gọn ở góc nhìn tổng quan để không chồng chữ; khi chọn một phòng, nhãn của các phiên trong phòng đó sẽ hiển thị đầy đủ.
+- Nếu máy yếu, mở `http://127.0.0.1:7788/2d.html` để xem sơ đồ 2D.
+
 ## An toàn mặc định
 
 - `host: "127.0.0.1"`: không lắng nghe từ LAN. Khách từ xa bị từ chối nếu không cấu hình khóa xem.

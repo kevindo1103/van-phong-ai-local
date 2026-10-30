@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Văn phòng AI</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
@@ -51,7 +52,35 @@ body.zoomed .bar{top:auto;bottom:14px;left:auto;right:14px;z-index:30}
 .lb .r{font-size:9px;color:#9aa3ad;white-space:nowrap;text-shadow:0 1px 3px #000}
 .lb.sel .n{color:var(--gold)}
 .lb .b{display:inline-block;margin-bottom:4px;font-size:9.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(5,6,8,.85);border:1px solid;white-space:nowrap}
-.rl{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#7c8794;font-weight:700;white-space:nowrap;pointer-events:none;text-shadow:0 1px 3px #000}
+.rl{font-size:13px;letter-spacing:.035em;color:#f4f7fc;font-weight:700;white-space:nowrap;pointer-events:none;text-shadow:none;background:rgba(10,18,28,.9);border:1px solid rgba(210,225,245,.24);border-radius:9px;padding:6px 10px;box-shadow:0 4px 12px rgba(0,0,0,.3)}
+.lb.summary .n,.lb.summary .r,.lb.summary .say,.lb.summary .b{display:none!important}
+.lb.summary{pointer-events:none}
+#view-toolbar{position:fixed;z-index:12;top:92px;left:16px;display:flex;gap:7px;pointer-events:auto}
+.view-choice{font:600 12px "Be Vietnam Pro",system-ui,sans-serif;background:rgba(10,18,28,.9);color:#d3ddeb;border:1px solid rgba(190,208,231,.2);border-radius:11px;padding:10px 13px;cursor:pointer}
+.view-choice.active{background:var(--gold);color:#111;border-color:transparent}
+#office-directory{position:fixed;z-index:11;top:98px;right:16px;bottom:48px;width:300px;overflow-y:auto;padding:16px;background:rgba(9,15,24,.92);border:1px solid rgba(194,211,235,.18);border-radius:17px;box-shadow:0 16px 50px rgba(0,0,0,.42);backdrop-filter:blur(18px);pointer-events:auto}
+.dir-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.dir-head b{font-size:15px}.dir-head small{color:#b7c5d8;font-size:11px}
+.dir-help{margin:7px 0 13px;color:#a5b6ca;line-height:1.45;font-size:11px}
+.dir-rooms{display:grid;grid-template-columns:1fr;gap:5px}
+.dir-room{display:flex;justify-content:space-between;gap:7px;align-items:center;text-align:left;border-radius:9px;border:1px solid rgba(200,213,232,.12);background:rgba(255,255,255,.035);color:#edf4ff;padding:8px 10px;cursor:pointer;font:600 12px "Be Vietnam Pro",system-ui}
+.dir-room:hover,.dir-room.active{background:rgba(236,201,112,.15);border-color:rgba(236,201,112,.5)}
+.dir-room .room-count{font:700 12px "JetBrains Mono",monospace;color:#ecc970}
+.dir-divider{border-top:1px solid rgba(255,255,255,.12);margin:14px 0 12px}
+.dir-section{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:8px}
+.dir-section b{font-size:12px}.dir-section button{cursor:pointer;border:0;background:transparent;color:#ecc970;font:600 11px "Be Vietnam Pro",system-ui}
+#dir-sessions{display:flex;flex-direction:column;gap:5px}
+.dir-session{cursor:pointer;display:flex;align-items:center;gap:8px;text-align:left;border:1px solid rgba(185,201,220,.12);border-radius:10px;background:rgba(255,255,255,.035);color:#edf1f8;padding:8px;font:inherit}
+.dir-session:hover,.dir-session.chosen{background:rgba(124,207,155,.12);border-color:rgba(124,207,155,.48)}
+.dir-session .status-dot{width:8px;height:8px;flex-shrink:0;border-radius:100%;background:#627083}
+.dir-session .status-dot.active{background:#7ccf9b}.dir-session .status-dot.idle{background:#ecc970}
+.dir-session .session-meta{display:flex;flex-direction:column;min-width:0;gap:2px}
+.dir-session strong{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dir-session small{font-size:10px;color:#9fadc0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dir-empty{font-size:11px;line-height:1.5;color:#aab9cd;padding:10px;border:1px dashed rgba(200,214,230,.2);border-radius:9px}
+body.wide-view #office-directory{display:none}
+body.zoomed #view-toolbar,body.zoomed #office-directory{display:none}
+body.zoomed .bar .pill{display:none}
+@media(max-width:900px){#view-toolbar{top:78px;left:10px}.view-choice{padding:8px 10px}#office-directory{width:min(290px,calc(100vw - 20px));top:auto;bottom:48px;max-height:38vh;right:10px}.dir-rooms{grid-template-columns:1fr 1fr}.dir-room{font-size:10px;padding:7px} .bar{gap:6px}.bar .ask:not(#ask){display:none}}
 .dl{font-size:11px;color:#e8e8e8;text-align:center;pointer-events:none;text-shadow:0 1px 4px #000;white-space:nowrap}
 .dl small{display:block;color:#9aa3ad;font-size:9.5px}
 .say{display:block;max-width:320px;max-height:170px;overflow:auto;pointer-events:auto;margin:0 auto 6px;font-size:10.5px;font-weight:600;line-height:1.35;padding:6px 9px;border-radius:12px;background:rgba(6,8,11,.92);border:1px solid;white-space:normal;text-align:left;box-shadow:0 6px 18px rgba(0,0,0,.5);animation:pop .35s cubic-bezier(.2,1.4,.4,1)}
@@ -88,6 +117,18 @@ body.zoomed .bar{top:auto;bottom:14px;left:auto;right:14px;z-index:30}
   <button class="btn ghost" id="back" style="display:none">Về văn phòng 3D</button>
 </div>
 <div class="card" id="card"></div>
+<div id="view-toolbar" role="toolbar" aria-label="Góc nhìn văn phòng">
+  <button class="view-choice active" id="view-office" type="button">Văn phòng</button>
+  <button class="view-choice" id="view-wide" type="button">Toàn cảnh</button>
+</div>
+<aside id="office-directory" aria-label="Các phòng và phiên AI">
+  <div class="dir-head"><b>Đội AI · Phòng ban</b><small id="dir-summary">Đang kết nối</small></div>
+  <p class="dir-help">Chọn một phòng để phóng to. Chọn session để xem trạng thái và chuyển phòng.</p>
+  <div id="dir-rooms" class="dir-rooms"></div>
+  <div class="dir-divider"></div>
+  <div class="dir-section"><b id="dir-section-title">Tất cả session</b><button id="dir-show-all" type="button">Hiện tất cả</button></div>
+  <div id="dir-sessions"></div>
+</aside>
 <div class="hint" id="hint">Kéo để xoay · chụm/cuộn để phóng to · bấm vào tên một người để xem họ đang làm gì</div>
 <div class="links"><a href="tongquan.html">Tổng quan</a><a href="hopthu.html">Hòm thư</a><a href="hieusuat.html">Đánh giá nhân sự</a><a href="board.html">Mở bảng điều hành toàn màn hình</a><a href="2d.html">Sơ đồ 2D</a></div>
 <script src="rooms.js"></script>
@@ -119,22 +160,29 @@ const controls = new OrbitControls(camera, gl.domElement);
 controls.enableDamping = true; controls.maxPolarAngle = 1.38; controls.minDistance = 14; controls.maxDistance = 260;
 const S = 8; // 1 đơn vị 3D = 8 px mặt bằng: văn phòng rộng hơn 25%
 const X = (x) => (x - 600) / S, Z = (y) => (y - 390) / S;
-const HOME_CAM = { pos: new THREE.Vector3(0, 58, 158), target: new THREE.Vector3(0, 32, -20) }; // nhìn cao lên: 3 màn hình chiếm nửa trên, văn phòng nửa dưới
+// Office-focused camera: the floor occupies the main view; wall dashboards are an optional view.
+const HOME_CAM = { pos: new THREE.Vector3(18, 110, 110), target: new THREE.Vector3(18, 0, 0) };
+const WIDE_CAM = { pos: new THREE.Vector3(0, 58, 158), target: new THREE.Vector3(0, 32, -20) };
+let viewMode = "office", focusedRoom = "all";
 function resize() {
   const w = innerWidth, hh = innerHeight;
   gl.setSize(w, hh); lblR.setSize(w, hh); cssR.setSize(w, hh);
   camera.aspect = w / hh; camera.updateProjectionMatrix();
-  const k = 1.7 * Math.max(1, 1.7 / camera.aspect); HOME_CAM.pos.set(0, 58 * k, 158 * k); // lùi ra để thấy đủ 3 màn hình
+  const narrow = Math.max(1, 1.65 / camera.aspect);
+  HOME_CAM.pos.set(18, 110 * narrow, 110 * narrow);
+  HOME_CAM.target.set(18, 0, 0);
+  WIDE_CAM.pos.set(0, 95 * narrow, 245 * narrow);
 }
 addEventListener("resize", resize); resize();
 camera.position.copy(HOME_CAM.pos); controls.target.copy(HOME_CAM.target);
 controls.maxDistance = 340;
+controls.minPolarAngle = 0.12;
 
 // ánh sáng thật: môi trường phản chiếu + nắng có bóng đổ
 gl.shadowMap.enabled = true; gl.shadowMap.type = THREE.PCFSoftShadowMap;
 const pmrem = new THREE.PMREMGenerator(gl);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x2a1f16, 0.35));
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x556372, 0.85));
 const key = new THREE.DirectionalLight(0xfff1dc, 1.7); key.position.set(-60, 110, 70); key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
 Object.assign(key.shadow.camera, { left: -100, right: 100, top: 70, bottom: -70, near: 10, far: 320 }); scene.add(key);
@@ -207,6 +255,7 @@ for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const cx = X(980) +
 for (const [dz, rot] of [[0, 0]]) { const sx = X(1100), sz = Z(715); add(new THREE.Mesh(new THREE.BoxGeometry(12, 1, 3.4), std(0x3c4048, { roughness: .95 })), sx, .8, sz + dz); add(new THREE.Mesh(new THREE.BoxGeometry(12, 2.2, .8), std(0x3c4048, { roughness: .95 })), sx, 1.6, sz + 1.6); for (const ax of [-1, 1]) add(new THREE.Mesh(new THREE.BoxGeometry(.8, 1.6, 3.4), std(0x3c4048, { roughness: .95 })), sx + ax * 6, 1.1, sz); add(new THREE.Mesh(new THREE.BoxGeometry(5, .2, 2.4), std(0xc59a6e, { roughness: .35 })), sx, 1, sz - 4); }
 
 // ---------- màn hình lớn: to bằng cả văn phòng ----------
+const preWallChildren = new Set(scene.children);
 const SCR = { w: 160, h: 160 * 1080 / 1920, x: 0, y: 52, z: -62 }; // 3 màn hình cùng khổ 16:9, nội dung đầy đủ như khi xem toàn màn hình
 add(new THREE.Mesh(new THREE.BoxGeometry(SCR.w + 6, SCR.y - SCR.h / 2, 3), std(0x15171b, { metalness: .5, roughness: .4 })), SCR.x, (SCR.y - SCR.h / 2) / 2, SCR.z - 1);
 add(new THREE.Mesh(new THREE.BoxGeometry(SCR.w + 2.4, SCR.h + 2.4, 1.2), std(0x0b0d10, { metalness: .7, roughness: .25 })), SCR.x, SCR.y, SCR.z - .7);
@@ -218,11 +267,11 @@ function wallScreen(cfg) {
   const { w, pxw, pxh, x, y, z, ry, page, title } = cfg, hgt = w * pxh / pxw;
   const hole = new THREE.Mesh(new THREE.PlaneGeometry(w, hgt), new THREE.MeshBasicMaterial({ color: 0x000000, opacity: 0, transparent: false, blending: THREE.NoBlending, side: THREE.DoubleSide }));
   hole.position.set(x, y, z); hole.rotation.y = ry; scene.add(hole);
-  const ifr = document.createElement("iframe"); ifr.src = page; ifr.title = title;
+  const ifr = document.createElement("iframe"); ifr.title = title; // load dashboard only in panoramic view
   Object.assign(ifr.style, { width: pxw + "px", height: pxh + "px", border: "0", background: "#000", pointerEvents: "auto" });
   const obj = new CSS3DObject(ifr); obj.position.copy(hole.position); obj.rotation.y = ry; obj.scale.setScalar(w / pxw); cssScene.add(obj);
   ifr.addEventListener("mouseleave", () => { if (!zoomed) gl.domElement.style.pointerEvents = "auto"; });
-  const sc = { ...cfg, h: hgt, hole, ifr, normal: new THREE.Vector3(Math.sin(ry), 0, Math.cos(ry)) };
+  const sc = { ...cfg, h: hgt, hole, ifr, obj, normal: new THREE.Vector3(Math.sin(ry), 0, Math.cos(ry)) };
   walls.push(sc); return sc;
 }
 wallScreen({ key: "board", title: "Bảng điều hành", page: "board.html", w: SCR.w, pxw: 1920, pxh: 1080, x: SCR.x, y: SCR.y, z: SCR.z, ry: 0 });
@@ -239,6 +288,20 @@ for (const [key, page, title, sx] of [["viec", "congviec.html", "Công việc & 
   add(new THREE.Mesh(new THREE.BoxGeometry(SIDE.w * .5, SCR.y - sc.h / 2, 2), std(0x15171b, { metalness: .5, roughness: .4 })), 0, -(sc.h / 2) - (SCR.y - sc.h / 2) / 2, -1.2, g);
   const glow = new THREE.PointLight(0xa9c8ff, 70, 110, 2); glow.position.set(x * 0.8, 20, z + 22); scene.add(glow);
 }
+
+// Make the huge wall dashboards optional: default 3D experience is the office itself.
+const screenDecor = scene.children.filter((child) => !preWallChildren.has(child));
+function showWallScreens(visible) {
+  for (const object of screenDecor) object.visible = visible;
+  for (const wall of walls) {
+    wall.obj.visible = visible;
+    if (visible && !wall.loaded) { wall.ifr.src = wall.page; wall.loaded = true; }
+    if (!visible && wall.loaded) { wall.ifr.src = "about:blank"; wall.loaded = false; }
+  }
+  $("css3d").style.visibility = visible ? "visible" : "hidden";
+  gl.domElement.style.pointerEvents = "auto";
+}
+showWallScreens(false);
 
 // ---------- bàn làm việc thật: mặt gỗ, 2 màn hình, bàn phím, ly, đèn, ghế xoay ----------
 const HOME = {};
@@ -470,12 +533,80 @@ function setZoom(key) { // key = màn hình cần xem; null = về văn phòng
     setTimeout(() => { if (zoomed) full.classList.add("show"); }, 750);
   } else {
     full.classList.remove("show");
-    flyCam(HOME_CAM.pos.clone(), HOME_CAM.target.clone(), 1100);
+    if (viewMode === "wide") flyCam(WIDE_CAM.pos.clone(), WIDE_CAM.target.clone(), 800);
+    else if (focusedRoom !== "all") flyCam(...roomCamera(focusedRoom), 800);
+    else flyCam(HOME_CAM.pos.clone(), HOME_CAM.target.clone(), 800);
   }
 }
 addEventListener("keydown", (e) => { if (e.key === "Escape" && zoomed) setZoom(null); });
 document.querySelectorAll(".zbtn").forEach((b) => b.addEventListener("click", () => setZoom(b.dataset.screen)));
 $("back").addEventListener("click", () => setZoom(null));
+function roomCamera(id) {
+  const room = OfficeRooms.ROOMS.find((r) => r.id === id && id !== "lounge");
+  if (!room) return [HOME_CAM.pos.clone(), HOME_CAM.target.clone()];
+  const center = new THREE.Vector3(X(room.x + room.w / 2), 0, Z(room.y + room.h / 2));
+  const offset = Math.max(1, 1.65 / camera.aspect);
+  const target = center.clone().add(new THREE.Vector3(10, 0, 0));
+  return [target.clone().add(new THREE.Vector3(0, 39 * offset, 39 * offset)), target];
+}
+function setOfficeView(mode = "office", roomId = "all") {
+  viewMode = mode === "wide" ? "wide" : "office";
+  focusedRoom = viewMode === "wide" ? "all" : roomId;
+  document.body.classList.toggle("wide-view", viewMode === "wide");
+  $("view-office").classList.toggle("active", viewMode === "office");
+  $("view-wide").classList.toggle("active", viewMode === "wide");
+  showWallScreens(viewMode === "wide");
+  const [pos, target] = viewMode === "wide" ? [WIDE_CAM.pos.clone(), WIDE_CAM.target.clone()]
+    : focusedRoom === "all" ? [HOME_CAM.pos.clone(), HOME_CAM.target.clone()] : roomCamera(focusedRoom);
+  flyCam(pos, target, 650);
+  if (last) renderDirectory(last);
+}
+$("view-office").addEventListener("click", () => setOfficeView("office", "all"));
+$("view-wide").addEventListener("click", () => setOfficeView("wide", "all"));
+$("dir-show-all").addEventListener("click", () => setOfficeView("office", "all"));
+const directoryRooms = OfficeRooms.ROOMS.filter((r) => OfficeRooms.isAgentRoom(r.id));
+const dirButtons = new Map();
+for (const room of directoryRooms) {
+  const b = h("button", "dir-room");
+  b.type = "button"; b.dataset.room = room.id;
+  const name = h("span", "", room.label), count = h("span", "room-count", "0");
+  b.append(name, count);
+  b.addEventListener("click", () => setOfficeView("office", room.id));
+  $("dir-rooms").appendChild(b); dirButtons.set(room.id, { b, count });
+}
+let directorySignature = "";
+function renderDirectory(s) {
+  const members = s.agents || [];
+  const sig = focusedRoom + "|" + (selected || "") + "|" + members.map((a) => [a.key,a.name,a.room,a.roomSource,a.status,a.flag].join(":")).join("|");
+  $("dir-summary").textContent = members.filter((a) => a.platform !== "human").length + " phiên AI";
+  for (const [id, val] of dirButtons) {
+    val.count.textContent = String(members.filter((a) => a.room === id).length);
+    val.b.classList.toggle("active", focusedRoom === id);
+  }
+  if (sig === directorySignature) return;
+  directorySignature = sig;
+  const subset = focusedRoom === "all" ? members : members.filter((a) => a.room === focusedRoom);
+  $("dir-section-title").textContent = focusedRoom === "all" ? "Tất cả session" : OfficeRooms.label(focusedRoom);
+  const target = $("dir-sessions"); target.textContent = "";
+  if (!subset.length) {
+    target.appendChild(h("p", "dir-empty", "Phòng này chưa có session. Các phiên có prefix đúng sẽ tự chuyển vào đây."));
+  }
+  for (const agent of subset) {
+    const b = h("button", "dir-session" + (selected === agent.key ? " chosen" : "")); b.type = "button";
+    const dot = h("span", "status-dot " + agent.status);
+    const meta = h("span", "session-meta");
+    meta.append(h("strong", "", agent.name), h("small", "",
+      agent.platform === "human" ? "CEO" : OfficeRooms.label(agent.room) + " · " + (agent.status === "active" ? "Đang làm" : agent.status === "idle" ? "Chờ" : "Tạm nghỉ")));
+    b.append(dot, meta);
+    b.addEventListener("click", () => {
+      selected = agent.key;
+      if (focusedRoom !== agent.room) setOfficeView("office", agent.room);
+      showCard();
+      renderDirectory(last);
+    });
+    target.appendChild(b);
+  }
+}
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 gl.domElement.addEventListener("pointermove", (ev) => {
   if (zoomed || ev.buttons) return;
@@ -527,6 +658,7 @@ let last = null; const seen = new Set(); let first = true;
 function apply(s) {
   last = s;
   const A = s.agents, staff = A.filter((a) => a.platform !== "human");
+  renderDirectory(s);
   computedSeats = OfficeRooms.arrange(A);
   $("clock").textContent = new Date(s.now).toLocaleTimeString("vi-VN", { hour12: false });
   $("k1").textContent = staff.filter((a) => a.status === "active" && !a.flag).length;
@@ -572,6 +704,7 @@ function apply(s) {
     else if (b.active) { label = "● đang làm"; col = "#7ccf9b"; }
     b.bub.style.display = label ? "inline-block" : "none"; b.bub.textContent = label; b.bub.style.color = col; b.bub.style.borderColor = col;
     b.lab.classList.toggle("sel", selected === a.key);
+    b.lab.classList.toggle("summary", selected !== a.key && (focusedRoom === "all" || a.room !== focusedRoom));
     const want = Math.min(a.sub || 0, 6);
     while (b.subs.children.length < want) b.subs.add(new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 8), new THREE.MeshBasicMaterial({ color: PCOL[a.platform] })));
     while (b.subs.children.length > want) b.subs.remove(b.subs.children[0]);
