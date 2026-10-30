@@ -146,6 +146,7 @@ body.zoomed .bar .pill{display:none}
   <div class="sp"></div>
   <button class="btn ghost zbtn" data-screen="viec" title="Màn hình tường trái">◧ Công việc</button>
   <button class="btn zbtn" data-screen="board" title="Màn hình lớn giữa phòng">Xem màn hình lớn</button>
+  <a class="btn ghost" href="observer.html" title="Bằng chứng từ heartbeat và GitHub PR/CI, không đánh đồng với liveness">Agent Observer</a>
   <button class="btn ghost zbtn" data-screen="noiquy" title="Màn hình tường phải">Nội quy ◨</button>
   <button class="btn ghost" id="back" style="display:none">Về văn phòng 3D</button>
 </div>
@@ -203,6 +204,14 @@ const BADGES = { active: ["ACTIVE", "active"], idle: ["IDLE", "idle"], blocked: 
   away: ["AWAY", "away"], unknown: ["CHƯA RÕ", "unknown"], human: ["CEO", "human"] };
 function badgeOf(a) {
   if (a.platform === "human") return BADGES.human;
+  if (a.platform === "claude" && a.observation?.activity?.source === "claude-hook") {
+    const stage = a.observation.activity.state;
+    if (stage === "tool-running") return ["ĐANG GỌI TOOL", "active"];
+    if (stage === "working") return BADGES.active;
+    if (stage === "approval-wait") return ["CHỜ PHÊ DUYỆT", "idle"];
+    if (stage === "idle") return BADGES.idle;
+    if (stage === "ended") return ["KẾT THÚC", "away"];
+  }
   if ((a.platform === "work" || a.platform === "chatgpt") && a.connection === "unlinked") return BADGES.unlinked;
   if ((a.platform === "work" || a.platform === "chatgpt") && a.connection === "stale") {
     if (a.reportedState === "blocked") return ["BLOCKED · CŨ", "stale"];
@@ -994,6 +1003,37 @@ function showCard() {
       "Mã local do văn phòng cấp; không phải ID thật của cuộc trò chuyện trên ChatGPT. " +
       "Phiên chỉ có ACTIVE khi gửi heartbeat qua công cụ đã được cấp quyền."));
     info.appendChild(connect);
+  }
+  if (!a.ceo && a.observation) {
+    const ob = a.observation;
+    const box = h("section", "work-detail");
+    box.appendChild(h("h5", "", "AGENT OBSERVER · BẰNG CHỨNG"));
+    const liveNames = {
+      "recent-signal": "Heartbeat mới", "recent-log": "Nhật ký local vừa cập nhật",
+      stale: "Tín hiệu cũ", unlinked: "Chưa kết nối",
+      unknown: "Chưa xác minh", "not-applicable": "Không áp dụng"
+    };
+    box.appendChild(h("div", "m", "Hoạt động kỹ thuật: " +
+      (liveNames[ob.activity?.state] || "Chưa xác minh") +
+      " · nguồn " + (ob.activity?.source || "không có") +
+      (ob.activity?.observedAt ? " · " + ago(ob.activity.observedAt) + " trước" : "")));
+    box.appendChild(h("div", "m", "Công việc (lần cuối được báo): " +
+      (ob.work?.task || "Chưa có") + " · " + (ob.work?.state || "unknown")));
+    const linked = ob.delivery?.pr;
+    if (linked) {
+      const block = h("div", "work-field");
+      block.append(h("strong", "", "PR #" + linked.number + " · nguồn GitHub, gán thủ công"),
+        h("p", "", linked.title + " — " + (linked.ci?.label || "Chưa có CI trong cửa sổ")));
+      const aLink = h("a", "", "Mở PR");
+      if (linked.url) { aLink.href = linked.url; aLink.target = "_blank"; aLink.rel = "noopener noreferrer"; }
+      else aLink.textContent = "PR chưa có đường dẫn";
+      block.append(aLink);box.append(block);
+    } else {
+      box.appendChild(h("div", "m", "Chưa gán PR: không suy luận chủ sở hữu từ tên phiên."));
+    }
+    const more = h("a", "", "Mở Agent Observer · gán PR / xem CI");
+    more.href = "observer.html";
+    box.appendChild(more);info.appendChild(box);
   }
   if (!a.ceo) {
     info.appendChild(h("div", "m", "Phòng: " + OfficeRooms.label(a.room) +

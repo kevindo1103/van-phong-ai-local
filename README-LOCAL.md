@@ -79,6 +79,19 @@ Mỗi phiên có một **bridgeId** riêng do localhost sinh, không phải ID h
 
 Đây chỉ là alias local, không phải ID thật của cuộc trò chuyện từ ChatGPT. Có thể chuyển phòng từ giao diện. Không tự đánh dấu đang làm chỉ vì người dùng mở tab. ACTIVE sẽ hết hạn sau 5 phút nếu không có heartbeat mới.
 
+## Agent Observer – nguồn trạng thái không tốn token LLM
+
+- Mở `http://127.0.0.1:7788/observer.html` từ menu **Agent Observer** của Văn phòng 3D.
+- Agent Observer đọc GitHub PR/Actions bằng `gh api` **chỉ đọc** từ phiên CLI đăng nhập trên ThinkPad. Nó lấy các PR đang mở và các run gần đây theo chu kỳ `observerRefreshSeconds` (mặc định 120 giây). Không tạo lượt LLM; không push/merge/deploy.
+- Trong `config.json` của máy (được gitignore), cấu hình `observerRepo: "OWNER/REPO"` và `observerRefreshSeconds: 120`. Để tắt GitHub observer, đặt repo rỗng. `gh auth status` phải có quyền đọc repo; không đặt token vào config.
+- Hai trục được giữ độc lập: **liveness** là tín hiệu heartbeat/hook/nhật ký có mốc thời gian; **delivery** là PR, CI và trạng thái công việc tự báo. PR cập nhật hay CI chạy **không có nghĩa agent đang suy luận**.
+- Để gắn PR đúng người: vào Agent Observer, chọn PR tại card của session và bấm **Lưu liên kết PR**. Gán này do người dùng xác nhận, được lưu local trong `data/observer-links.json` và không đưa lên GitHub. Không tự đoán chủ PR từ tên Bob/James.
+- Bảng PR hiện trạng thái CI **trong giới hạn 45 run gần đây của toàn repo**. Chỉ hiển thị bằng chứng từ cửa sổ quan sát; không thay thế quality gate hay tuyên bố full CI xanh.
+- Claude Code trên ThinkPad có hook ghi **metadata sự kiện** (`SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PermissionRequest`, `Stop`, `SessionEnd`) vào `data/observer-hooks` khi `cwd` thuộc dự án được cấu hình. Hook không lưu prompt, tool input/output, key, hoặc nội dung chat.
+- Cài hook bằng `node tools/install-claude-observer-hooks.js --apply` sau khi xem dry-run. Installer **giữ nguyên** hooks cũ, sao lưu `~/.claude/settings.json`, chỉ thêm observer hooks kiểu async. Tắt bằng cách xóa riêng các hook có `observer-claude-hook.js` khỏi settings (không xóa các hook cũ). Lần cài trên ThinkPad hiện tại đã thực hiện và lưu backup.
+- Các session Claude đã mở có thể cần phiên mới/đọc lại hooks để nhận sự kiện. `Codex` hiện chủ yếu được quan sát qua nhật ký local; không kết luận liveness chính xác từ log mtime hoặc giả vờ subscribe vào App Server của Codex Desktop.
+- Với ChatGPT Work chạy trên cloud, Agent Observer **không scan trực tiếp suy luận trên cloud**. Giữ event-driven heartbeat khi có sự kiện thật, không tự sinh ACTIVE giả và không làm gián đoạn B04/B05 để báo trạng thái.
+
 ## Robot 3D từ file GLB của chủ văn phòng
 
 - Đã cài local: `D:\AI-Office-Local\public\assets\ai_robot.glb`. Model được tải một lần bằng GLTFLoader rồi nhân bản cho mỗi session.

@@ -5,10 +5,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
-for (const file of ["index.html", "2d.html", "board.html"]) {
+for (const file of ["index.html", "2d.html", "board.html", "observer.html"]) {
   test("browser scripts and room layout are valid in " + file, () => {
     const html = fs.readFileSync(path.join(__dirname, "..", "public", file), "utf8");
-    assert.match(html, /src="rooms\.js"/);
+    if (file !== "observer.html") assert.match(html, /src="rooms\.js"/);
     const scripts = [...html.matchAll(/<script(?:\s+type="([^"]+)")?>([\s\S]*?)<\/script>/g)];
     assert.ok(scripts.length > 0, file + " is missing inline JS");
     for (const script of scripts) {

@@ -11,6 +11,9 @@ const crypto = require("crypto");
 const security = require("./lib/security");
 const officeRooms = require("./public/rooms");
 const workSessions = require("./lib/work-sessions");
+const { createObserver } = require("./lib/observer");
+const claudeObserver = require("./lib/observer-local");
+const { createLinks } = require("./lib/observer-links");
 const { createStore: createRoomStore } = require("./lib/session-rooms");
 const { execFile } = require("child_process");
 const perf = require("./lib/perf");
@@ -25,6 +28,9 @@ const CFG = loadConfig(ROOT);
 if (!CFG) { console.error("Chưa có config.json. Chạy trước: npm run setup"); process.exit(1); }
 const DATA = CFG.dataDir;
 const ROOM_STORE = createRoomStore(DATA);
+const DELIVERY_LINKS = createLinks(DATA);
+const OBSERVER = createObserver({ repo: CFG.observerRepo, refreshMs: Number(CFG.observerRefreshSeconds || 120) * 1000 });
+OBSERVER.start();
 const PORT = Number(process.env.PORT || CFG.port);
 const KEEP = CFG.keepHours * 3600000;
 const FIRST_READ = 8_000_000; // lần đầu chỉ đọc 8 MB cuối mỗi nhật ký
@@ -492,6 +498,51 @@ function moneyOf(week, t) {
   return { cap: CFG.aiCapUsd, days, today: today.reverse(), source: "uoc-tinh", note: "ước tính theo giá API trong config.json + tiền lượt DEV tự khai" };
 }
 
+function enrichAgentObservations(out, observerState, time) {
+  for (const a of out) {
+    const external = a.platform === "work" || a.platform === "chatgpt";
+    const signal = external ? a.lastHeartbeat : a.lastActive;
+    const recentSignal = signal && time - signal < (external ? 5 * 60000 : 90000);
+    const hook = a.platform === "claude" ? claudeObserver.read(DATA, a.key, time) : null;
+    // Local log activity is only a recent filesystem event, not proof of
+    // model inference. Claude lifecycle hooks are stronger when fresh.
+    const activity = a.platform === "human" ? "not-applicable" :
+      external ? a.connection === "live" ? "recent-signal" : a.connection === "unlinked" ? "unlinked" : "stale" :
+      hook?.fresh ? hook.lastStage : recentSignal ? "recent-log" : signal ? "stale" : "unknown";
+    if (hook?.fresh) {
+      if (hook.lastStage === "working" || hook.lastStage === "tool-running") a.status = "active";
+      else if (hook.lastStage === "idle" || hook.lastStage === "approval-wait") a.status = "idle";
+      else if (hook.lastStage === "ended") a.status = "away";
+    }
+    const linkedPr = DELIVERY_LINKS.get(a.key);
+    const matching = linkedPr ? observerState.prs.find((p) => p.number === linkedPr) : null;
+    a.observation = {
+      activity: {
+        state: activity, source: hook?.fresh ? "claude-hook" : external ? "agent-heartbeat" :
+          a.platform === "human" ? "none" : "local-journal",
+        observedAt: hook?.fresh ? hook.observedAt : signal || null,
+        evidence: hook?.fresh ? hook.evidence : external ? "Heartbeat do phiên chủ động gửi" :
+          a.platform === "human" ? "Không giám sát liveness cho CEO" :
+          "Thời gian cập nhật nhật ký local (không xác nhận suy luận)"
+      },
+      work: {
+        state: external ? (a.reportedState || "unknown") : "unknown",
+        task: external ? a.task || "" : "",
+        progress: external ? a.progress || "" : "",
+        blocker: external ? a.blocker || "" : "",
+        observedAt: external ? a.detailUpdatedAt || null : null,
+        source: external && a.detailUpdatedAt ? "agent-reported" : "unreported"
+      },
+      delivery: {
+        prNumber: linkedPr,
+        pr: matching || null,
+        status: linkedPr ? matching ? "linked" : "unavailable" : "unlinked",
+        source: "github-read-only",
+        checkedAt: observerState.checkedAt
+      }
+    };
+  }
+}
 // ---------- ảnh chụp trạng thái ----------
 function statusOf(a, t) {
   if (a.ceo) return a.ceoLastAt && t - a.ceoLastAt < 15 * 60000 ? "active" : "away";
@@ -526,6 +577,8 @@ function snapshot() {
     }
     out.push(external);
   }
+  const observerState = OBSERVER.read();
+  enrichAgentObservations(out, observerState, t);
   const recent = events.filter((e) => t - e.t < 24 * 3600000);
   const alerts = [];
   if (dev.idleSince && t - dev.idleSince > 15 * 60000 && dev.queue.length) alerts.push({ level: "warn", text: `DEV trống ${Math.round((t - dev.idleSince) / 60000)} phút, hàng chờ còn ${dev.queue.length} gói` });
@@ -558,7 +611,11 @@ function snapshot() {
   const { weekRows, ...devOut } = dev;
   return { now: t, title: CFG.title, subtitle: CFG.subtitle, ownerName: CFG.ownerName, tinKet: { at: t, items: [] }, agents: out, dev: { ...devOut, lastRows: dev.lastRows.slice(-25), match },
     turns, team, tasks: taskView, sys, events: (CFG.showSessionContent ? recent : recent.map((e) => ({ ...e, title: "Nội dung phiên đã ẩn", body: "" }))).slice(-300), alerts,
-    asks: ceoAsks(out, t).map((a) => (CFG.showSessionContent || a.kind === "so" ? a : { ...a, text: "Có yêu cầu từ phiên AI (nội dung đã ẩn)" })), money: moneyOf(week, t) };
+    asks: ceoAsks(out, t).map((a) => (CFG.showSessionContent || a.kind === "so" ? a : { ...a, text: "Có yêu cầu từ phiên AI (nội dung đã ẩn)" })),
+    observer: { repo: observerState.repo, status: observerState.status,
+      checkedAt: observerState.checkedAt, attemptAt: observerState.attemptAt,
+      error: observerState.error, refreshSeconds: observerState.refreshSeconds,
+      prCount: observerState.prs.length }, money: moneyOf(week, t) };
 }
 
 // ---------- vòng lặp ----------
@@ -678,6 +735,35 @@ async function registerChatSession(req, res) {
     if (!res.headersSent) sendError(500, "Không thể lưu phiên: " + String(e?.code || "unknown"));
   }
 }
+// Associate a PR with a session only when explicitly requested by the user.
+// This is attribution, not evidence that the agent is currently running.
+async function linkObserverPr(req, res) {
+  const reply = (code, body) => {
+    res.writeHead(code, { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+    res.end(JSON.stringify(body));
+  };
+  try {
+    let raw = "";
+    for await (const chunk of req) {
+      raw += chunk.toString("utf8");
+      if (raw.length > 1500) return reply(413, { error: "Request too large" });
+    }
+    const body = JSON.parse(raw || "{}");
+    const session = String(body.session || "");
+    const pr = body.pr == null ? null : Number(body.pr);
+    if (!/^(?:[wg]-[a-f0-9]{12}|[cx]-[a-f0-9]{8})$/i.test(session))
+      return reply(400, { error: "Invalid session ID" });
+    const agent = snapshot().agents.find((a) => a.key === session);
+    if (!agent) return reply(404, { error: "Session not found" });
+    if (pr !== null && (!Number.isSafeInteger(pr) || !OBSERVER.read().prs.some((p) => p.number === pr)))
+      return reply(400, { error: "PR not found in current observer window; refresh GitHub first" });
+    DELIVERY_LINKS.set(session, pr);
+    return reply(200, { ok: true, session, pr, source: "user-assigned" });
+  } catch (e) {
+    console.error("Observer link:", String(e?.code || e?.message).slice(0, 100));
+    return reply(e instanceof SyntaxError ? 400 : 500, { error: "Could not save observer link" });
+  }
+}
 http.createServer((req, res) => {
   const url = new URL(req.url, "http://x");
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -693,6 +779,15 @@ http.createServer((req, res) => {
   if (url.pathname === "/api/rooms/assign") {
     if (req.method !== "POST") { res.writeHead(405); return res.end(); }
     return assignSessionRoom(req, res);
+  }
+  if (url.pathname === "/api/observer/link") {
+    if (req.method !== "POST") { res.writeHead(405); return res.end(); }
+    return linkObserverPr(req, res);
+  }
+  if (url.pathname === "/api/observer") {
+    if (req.method !== "GET") { res.writeHead(405); return res.end(); }
+    return json(res, { observer: OBSERVER.read(), links: DELIVERY_LINKS.all(),
+      agents: snapshot().agents.map((a) => ({ key: a.key, name: a.name, room: a.room, platform: a.platform, observation: a.observation })) });
   }
   if (url.pathname === "/events") return sse(req, res, clients, snapshot());
   if (url.pathname === "/state") return json(res, snapshot());

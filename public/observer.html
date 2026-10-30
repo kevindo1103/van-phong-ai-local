@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Observer · Văn phòng AI</title><link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<style>
+:root{color-scheme:dark;--bg:#090f17;--card:#111d2b;--line:#29394c;--fg:#ebf3fd;--muted:#99aec5;--gold:#edca83}
+*{box-sizing:border-box}body{margin:0;font:13px/1.5 "Segoe UI",system-ui,sans-serif;background:radial-gradient(ellipse at 20% -10%,#1d3450,var(--bg) 60%);color:var(--fg)}
+a{color:#a8dcf4;text-decoration:none}a:hover{text-decoration:underline}
+button,select{font:inherit}button{cursor:pointer}
+.wrap{max-width:1480px;margin:auto;padding:28px 28px 80px}
+header{display:flex;gap:16px;justify-content:space-between;align-items:center;margin-bottom:22px}
+header small{font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+h1{font-size:26px;margin:4px 0;line-height:1.2;letter-spacing:-.03em}h2{font-size:17px;margin:0 0 5px}p{margin:3px 0;color:var(--muted)}
+.actions{display:flex;gap:8px;flex-wrap:wrap}.btn{border:1px solid var(--line);background:#192a3d;color:var(--fg);padding:10px 14px;border-radius:9px}
+.btn:hover{background:#263c52;text-decoration:none}.btn.gold{color:#171305;border-color:transparent;background:var(--gold);font-weight:700}
+#source{padding:12px 14px;margin-bottom:15px;background:#121e2c;border:1px solid var(--line);border-radius:11px;color:#b5c7d9;overflow-wrap:anywhere}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:0 0 17px}.stat{padding:15px;background:#132135;border:1px solid var(--line);border-radius:11px}.stat b{display:block;font-size:25px;line-height:1.1}.stat small{color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(330px,1fr);gap:18px}
+.panel{background:rgba(17,29,43,.96);border:1px solid var(--line);padding:20px;border-radius:16px;min-width:0}
+.subtitle{font-size:11px;color:var(--muted);margin-bottom:15px}.sessions,.prs,.runs{display:grid;gap:10px}
+.session,.pr,.run{background:#162436;border:1px solid #314358;border-radius:11px;padding:13px}
+.head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+.title{font-size:14px;font-weight:700;overflow-wrap:anywhere}.caption{font-size:10px;color:var(--muted);overflow-wrap:anywhere}
+.badge{display:inline-block;font-size:10px;font-weight:750;white-space:nowrap;border:1px solid #53637a;background:#273447;color:#d9e7fa;border-radius:999px;padding:3px 8px}
+.badge.live{color:#8ce5b5;border-color:#427858;background:#143829}.badge.warn{color:#f7d391;border-color:#7f6540;background:#382c1c}.badge.fail{color:#ffacb6;border-color:#975a64;background:#3d2027}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:9px 14px;margin:8px 0}.meta b{display:block;font-size:10px;font-weight:750;text-transform:uppercase;color:#91a9c2;margin-bottom:3px}.meta span{font-size:11px;overflow-wrap:anywhere}
+.report{margin:11px 0;padding:10px 12px;border-left:2px solid #7490b1;background:#142b3d;font-size:12px;overflow-wrap:anywhere}
+.report b{color:#deebfb}.report p{margin:3px 0;color:#c5d7e9}
+.linkrow{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.linkrow select{flex:1;min-width:180px;max-width:400px;background:#101b2a;color:#f0f7ff;border:1px solid #465a73;border-radius:8px;padding:8px}
+.linkrow button{border:1px solid #506785;border-radius:8px;padding:8px 11px;background:#243b51;color:#fff;font-size:11px}
+.note{font-size:10px;color:#99aec5;margin-top:8px}
+.pr a{font-weight:650;display:block;margin:4px 0}.pr small,.run small{font-size:10px;color:#8fa7c1;display:block;overflow-wrap:anywhere}
+#feedback{min-height:24px;color:var(--gold);margin-top:15px}
+@media(max-width:1050px){.grid{grid-template-columns:1fr}}
+@media(max-width:650px){.wrap{padding:16px 12px 60px}header{flex-direction:column;align-items:start}.stats{grid-template-columns:repeat(2,1fr)}.meta{grid-template-columns:1fr}}
+</style></head>
+<body><div class="wrap">
+<header><div><small>Bingxue · Delivery telemetry</small><h1>Agent Observer</h1>
+<p>Tách biệt <b>liveness kỹ thuật</b>, <b>báo cáo công việc</b> và <b>bằng chứng PR/CI</b>.</p></div>
+<div class="actions"><a class="btn" href="/">Văn phòng 3D</a><button class="btn gold" id="reload" type="button">Làm mới hiển thị</button></div></header>
+<div id="source" role="status">Đang lấy thông tin GitHub...</div>
+<div id="stats" class="stats"></div>
+<div class="grid">
+<section class="panel"><h2>Phiên AI theo phòng</h2><div class="subtitle">Gán PR cho từng session khi đã xác nhận người phụ trách; gán PR không thay đổi trạng thái hoạt động.</div><div class="sessions" id="sessions"></div></section>
+<aside><section class="panel" style="margin-bottom:18px"><h2>Pull Requests</h2><div class="subtitle">PR đang mở · chỉ đọc GitHub</div><div id="prs" class="prs"></div></section>
+<section class="panel"><h2>CI / GitHub Actions</h2><div class="subtitle">Các run gần nhất, không xác nhận agent đang chạy</div><div id="runs" class="runs"></div></section></aside>
+</div><div id="feedback" role="status"></div>
+</div>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const el=(tag,cls,value)=>{const a=document.createElement(tag);if(cls)a.className=cls;a.textContent=String(value??"");return a;};
+const ago=t=>!t?"chưa có":Math.max(0,Date.now()-t)<60000?Math.ceil(Math.max(0,Date.now()-t)/1000)+"s trước":Math.max(0,Date.now()-t)<3600000?Math.round((Date.now()-t)/60000)+" phút trước":Math.round((Date.now()-t)/3600000)+" giờ trước";
+const dt=t=>t?new Date(t).toLocaleString("vi-VN",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):"–";
+const badge=(s,c="")=>el("span","badge "+c,s);
+function link(url,label){try{const u=new URL(url);if(u.protocol!=="https:"||u.hostname!=="github.com")throw Error();const a=el("a","",label);a.href=u.href;a.target="_blank";a.rel="noopener noreferrer";return a}catch{return el("span","",label)}}
+function activityLabel(a){
+ const s=a.observation?.activity?.state;
+ const words={"recent-signal":"Heartbeat mới","recent-log":"Nhật ký mới",working:"Claude đang xử lý","tool-running":"Claude đang gọi tool","approval-wait":"Claude chờ duyệt",idle:"Claude rảnh",ended:"Claude kết thúc","stale":"Tín hiệu cũ","unlinked":"Chưa kết nối","unknown":"Chưa rõ","not-applicable":"CEO"};
+ return badge(words[s]||"Chưa xác minh",["recent-signal","recent-log","working","tool-running"].includes(s)?"live":["stale","approval-wait"].includes(s)?"warn":"");
+}
+const ciBadge=ci=>badge(ci?.label||"Chưa có CI",ci?.status==="success"?"live":ci?.status==="failure"?"fail":ci?.status==="running"?"warn":"");
+function field(label,value){const f=el("div","","");f.append(el("b","",label),el("span","",value));return f}
+function renderStats(obs,agents){
+ const active=agents.filter(a=>a.platform!=="human"&&["recent-signal","recent-log","working","tool-running","approval-wait","idle","ended"].includes(a.observation?.activity?.state)).length;
+ const reported=agents.filter(a=>a.observation?.work?.task).length;
+ const linked=agents.filter(a=>a.observation?.delivery?.prNumber).length;
+ const values=[[active,"Phiên có tín hiệu mới"],[reported,"Phiên có báo cáo việc"],[linked,"Liên kết PR thủ công"],[obs.prs?.length||0,"PR đang mở"]];
+ $("stats").replaceChildren(...values.map(([n,label])=>{const x=el("div","stat","");x.append(el("b","",n),el("small","",label));return x;}));
+}
+function renderSessions(agents,prs){
+ const cards=[];
+ for(const a of agents.filter(a=>a.platform!=="human")){
+   const ob=a.observation||{},l=ob.activity||{},w=ob.work||{},dl=ob.delivery||{},pr=dl.pr;
+   const card=el("article","session",""),head=el("div","head",""),identity=el("div","","");
+   identity.append(el("div","title",a.name),el("div","caption",a.room+" · "+a.platform));
+   head.append(identity,activityLabel(a));card.append(head);
+   const m=el("div","meta","");
+   m.append(field("Nguồn liveness",l.source||"chưa có"),
+     field("Quan sát cuối",ago(l.observedAt)),
+     field("Trạng thái đã báo",w.state||"chưa có"),
+     field("Báo cáo việc",ago(w.observedAt)));
+   card.append(m);
+   const rep=el("div","report","");
+   rep.append(el("b","","Công việc tự báo: "),
+     el("span","",w.task||"Chưa có mô tả công việc."));
+   if(w.progress)rep.append(el("p","",w.progress));
+   if(w.blocker)rep.append(el("p","", "Vướng mắc: "+w.blocker));
+   card.append(rep);
+   if(pr){
+     const evidence=el("div","report","");
+     evidence.append(el("b","","GitHub · liên kết thủ công"),el("div","","#"+pr.number+" · "+pr.title),ciBadge(pr.ci),el("span","", " "),link(pr.url,"Xem PR"));
+     card.append(evidence);
+   }else if(dl.prNumber){card.append(el("div","report","PR #"+dl.prNumber+" đã liên kết nhưng không có trong danh sách PR mở gần đây."));}
+   const bar=el("div","linkrow",""),select=document.createElement("select");
+   select.setAttribute("aria-label","PR gán cho "+a.name);
+   const empty=document.createElement("option");empty.value="";empty.textContent="Chưa gán PR";select.append(empty);
+   for(const prOption of prs){const o=document.createElement("option");o.value=String(prOption.number);o.textContent="#"+prOption.number+" · "+prOption.title.slice(0,55);select.append(o);}
+   select.value=dl.prNumber?String(dl.prNumber):"";
+   const button=el("button","","Lưu liên kết PR");
+   button.onclick=async()=>{
+      button.disabled=true;$("feedback").textContent="";
+      try{
+         const r=await fetch("/api/observer/link",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({session:a.key,pr:select.value?Number(select.value):null})});
+         const result=await r.json();
+         if(!r.ok||!result.ok)throw Error(result.error||"HTTP "+r.status);
+         $("feedback").textContent="Đã cập nhật PR cho "+a.name+". Đây không phải tín hiệu liveness.";
+         await refresh();
+      }catch(e){$("feedback").textContent="Không lưu được liên kết: "+e.message}
+      finally{button.disabled=false}
+   };
+   bar.append(select,button);card.append(bar,el("div","note","Không tự suy luận agent đang chạy từ commit hoặc CI."));
+   cards.push(card);
+ }
+ $("sessions").replaceChildren(...(cards.length?cards:[el("div","report","Chưa tìm thấy phiên AI.")]));
+}
+function renderPRs(prs,runs){
+ $("prs").replaceChildren(...(prs.length?prs.slice(0,14).map(pr=>{
+    const card=el("div","pr",""),head=el("div","head","");
+    head.append(el("b","", "#"+pr.number+(pr.isDraft?" · Draft":"")),ciBadge(pr.ci));
+    card.append(head,link(pr.url,pr.title),el("small","",pr.branch+" · cập nhật "+dt(pr.updatedAt)));
+    return card;
+ }):[el("div","report","Không tìm thấy PR đang mở.")]));
+ $("runs").replaceChildren(...(runs.length?runs.slice(0,12).map(run=>{
+    const card=el("div","run",""),head=el("div","head","");
+    head.append(el("b","",run.workflow||"Workflow"),badge(run.status==="completed"?run.conclusion||"completed":run.status,run.status!=="completed"?"warn":run.conclusion==="success"?"live":run.conclusion==="failure"?"fail":""));
+    card.append(head,link(run.url,"Run #"+run.id),el("small","",run.branch+" · "+dt(run.checkedAt)));return card;
+ }):[el("div","report","Chưa có CI gần đây.")]));
+}
+async function refresh(){
+ try{
+   const r=await fetch("/api/observer",{cache:"no-store"});if(!r.ok)throw Error("HTTP "+r.status);
+   const data=await r.json(),obs=data.observer||{},agents=data.agents||[];
+   let msg="GitHub: "+(obs.repo||"chưa cấu hình")+" · "+(obs.status||"loading");
+   msg+=obs.checkedAt?" · xác nhận lần cuối "+dt(obs.checkedAt):" · chưa kiểm tra";
+   if(obs.error)msg+=" · "+obs.error;
+   $("source").textContent=msg+" · Polling "+(obs.refreshSeconds||120)+" giây · zero LLM token";
+   renderStats(obs,agents);renderSessions(agents,obs.prs||[]);renderPRs(obs.prs||[],obs.runs||[]);
+ }catch(e){$("source").textContent="Không đọc được Agent Observer: "+e.message}
+}
+$("reload").addEventListener("click",refresh);
+refresh();setInterval(refresh,12000);
+</script></body></html>
