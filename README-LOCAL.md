@@ -106,9 +106,11 @@ Mỗi phiên có một **bridgeId** riêng do localhost sinh, không phải ID h
 
 - Mở `http://127.0.0.1:7788`: mặc định là **Văn phòng 3D** phóng lớn, không tải ba màn hình dashboard ở phía sau để giảm rối và tiết kiệm tài nguyên.
 - Bảng **Đội AI · Phòng ban** bên phải: xem số phiên mỗi phòng; bấm tên phòng để camera phóng to. Bấm từng session để xem trạng thái, chọn phòng thủ công.
-- Bấm **Hiện tất cả** (hoặc nút **Văn phòng** góc trái) để quay về toàn bộ các phòng.
+- **Gọn** (mặc định): chỉ giữ 1 robot đại diện/phòng, tối đa 2 khi có nhiều tín hiệu đang cần chú ý; khu **Chưa phân công** có thể không hiển thị robot cũ nhưng vẫn hiện tổng số phiên. Không xóa session, không thay đổi heartbeat/liveness hay phân công. Một phòng được phóng to sẽ hiện tối đa 4 robot theo mức ưu tiên; mọi phiên còn lại luôn chọn được từ danh sách bên phải.
+- **Tất cả**: hiển thị mọi robot, nhưng ở góc nhìn tổng quan vẫn ẩn phần lớn nhãn tên/trạng thái để tránh đè lên nhau. Chọn phòng để đọc tên hoặc chọn phiên từ sidebar. Nút **Văn phòng** quay về toàn bộ các phòng, nút **Toàn cảnh** mở màn hình tường.
 - Bấm **Toàn cảnh** để xem lại cả ba màn hình dashboard trong không gian 3D. Các nút Công việc / Xem màn hình lớn / Nội quy vẫn mở dashboard toàn màn hình như trước.
-- Các nhãn tên robot được thu gọn ở góc nhìn tổng quan để không chồng chữ; khi chọn một phòng, nhãn của các phiên trong phòng đó sẽ hiển thị đầy đủ.
+- Nhãn tên và badge chỉ hiện khi cần thiết; badge `ACTIVE · CŨ` không được xem là bằng chứng phiên đang chạy. Trên bảng tên phòng có tổng số phiên và số robot đang được gom gọn (`+N`). Nhấp bảng tên phòng để phóng to.
+- Bấm một robot hoặc session trong danh sách để xem **thẻ tóm tắt**: việc báo gần nhất, PR/Issue gắn với phiên. Nút **Chi tiết** mở thêm báo cáo kỹ thuật, nguồn dữ liệu, nhắn tin và gán phòng; **Thu gọn** để quay về thẻ nhỏ. Thẻ giữ trạng thái trong lúc dữ liệu SSE cập nhật, tránh mất nút khi đang bấm.
 - Nếu máy yếu, mở `http://127.0.0.1:7788/2d.html` để xem sơ đồ 2D.
 
 ## Nội quy AGENTS.md ưu tiên
@@ -136,7 +138,7 @@ Thứ tự đọc: `+"`"+String.raw`config.rulesFile`+"`"+String.raw` chỉ đ�
 - Trạng thái active/idle/blocked được **suy luận từ log**, không phải giám sát tác vụ ở mức hệ điều hành. 3D là phần hiển thị, không phải engine tạo hoặc điều phối phiên AI.
 - Hòm thư chỉ là tệp ghi việc; agent cần tự đọc `vp tiep` theo hướng dẫn. Không có cam kết exactly-once, retries hoặc scheduler như message queue thực thụ.
 - Lượt kết thúc, tỷ lệ lỗi công cụ, token và chi phí ước tính **không** phải số task đã nghiệm thu, chất lượng code hay hóa đơn sử dụng API.
-- Không tự lấy trạng thái CI/PR GitHub. ERP Project Board và GitHub là nguồn chuẩn cho backlog, pull request và quality gate.
+- Agent Observer có thể tự đọc PR/Issue và CI từ GitHub bằng tài khoản `gh` đã được cấp quyền, nhưng không gán chủ sở hữu tự động; bản ghi được gán thủ công không tương đương quyền GitHub assignee. GitHub và ERP Project Board vẫn là nguồn chuẩn cho backlog, pull request và quality gate.
 
 ## Kiểm thử & bảo trì
 

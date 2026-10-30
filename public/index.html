@@ -69,7 +69,7 @@ body.zoomed .bar{top:auto;bottom:14px;left:auto;right:14px;z-index:30}
 #view-toolbar{position:fixed;z-index:12;top:92px;left:16px;display:flex;gap:7px;pointer-events:auto}
 .view-choice{font:600 12px "Be Vietnam Pro",system-ui,sans-serif;background:rgba(10,18,28,.9);color:#d3ddeb;border:1px solid rgba(190,208,231,.2);border-radius:11px;padding:10px 13px;cursor:pointer}
 .view-choice.active{background:var(--gold);color:#111;border-color:transparent}
-#office-directory{position:fixed;z-index:11;top:98px;right:16px;bottom:48px;width:300px;overflow-y:auto;padding:16px;background:rgba(9,15,24,.92);border:1px solid rgba(194,211,235,.18);border-radius:17px;box-shadow:0 16px 50px rgba(0,0,0,.42);backdrop-filter:blur(18px);pointer-events:auto}
+#office-directory{position:fixed;z-index:11;top:98px;right:16px;bottom:48px;width:288px;overflow-y:auto;padding:16px;background:rgba(9,15,24,.92);border:1px solid rgba(194,211,235,.18);border-radius:17px;box-shadow:0 16px 50px rgba(0,0,0,.42);backdrop-filter:blur(18px);pointer-events:auto}
 #chat-add-toggle{width:100%;padding:10px 12px;border-radius:10px;background:rgba(124,207,155,.13);color:#a8eccc;border:1px solid rgba(124,207,155,.45);font:700 12px "Be Vietnam Pro",system-ui;cursor:pointer;text-align:center}
 #chat-add-toggle:hover{background:rgba(124,207,155,.2)}
 #chat-add-form{margin-top:10px;padding:11px;border:1px solid rgba(200,216,235,.18);border-radius:10px;background:rgba(11,16,25,.9);display:grid;gap:7px}
@@ -83,8 +83,8 @@ body.zoomed .bar{top:auto;bottom:14px;left:auto;right:14px;z-index:30}
 #chat-add-result code{display:block;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;font:10px "JetBrains Mono",monospace;color:#d7e7fc;background:rgba(9,15,24,.85);border:1px solid rgba(177,193,219,.15);border-radius:7px;padding:7px}
 .dir-head{display:flex;align-items:center;justify-content:space-between;gap:8px}.dir-head b{font-size:15px}.dir-head small{color:#b7c5d8;font-size:11px}
 .dir-help{margin:7px 0 13px;color:#a5b6ca;line-height:1.45;font-size:11px}
-.dir-rooms{display:grid;grid-template-columns:1fr;gap:5px}
-.dir-room{display:flex;justify-content:space-between;gap:7px;align-items:center;text-align:left;border-radius:9px;border:1px solid rgba(200,213,232,.12);background:rgba(255,255,255,.035);color:#edf4ff;padding:8px 10px;cursor:pointer;font:600 12px "Be Vietnam Pro",system-ui}
+.dir-rooms{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.dir-room{display:flex;justify-content:space-between;gap:6px;align-items:center;text-align:left;border-radius:9px;border:1px solid rgba(200,213,232,.12);background:rgba(255,255,255,.035);color:#edf4ff;padding:8px 9px;min-height:36px;cursor:pointer;font:600 10.5px "Be Vietnam Pro",system-ui}
 .dir-room:hover,.dir-room.active{background:rgba(236,201,112,.15);border-color:rgba(236,201,112,.5)}
 .dir-room .room-count{font:700 12px "JetBrains Mono",monospace;color:#ecc970}
 .dir-divider{border-top:1px solid rgba(255,255,255,.12);margin:14px 0 12px}
@@ -132,6 +132,35 @@ body.zoomed .bar .pill{display:none}
 .work-source{margin-top:8px;color:#8c9bb0;font-size:10px;line-height:1.5}
 @media(max-width:760px){.card{top:124px;left:10px;width:min(365px,calc(100vw - 20px));max-height:calc(100vh - 160px);padding:12px}}
 @media (max-width: 760px){ .zbtn{padding:8px 9px!important;font-size:11px!important} .k{display:none} .ttl small{display:none} .clock{font-size:16px} .btn{padding:9px 11px;font-size:12px} .links a:first-child{display:none} }
+
+/* Calm overview: one representative per department instead of 20 overlapping badges. */
+.lb .n,.lb .r{display:none!important}
+.rl{display:inline-flex;align-items:center;gap:7px;pointer-events:auto;cursor:pointer;user-select:none}
+.rl:hover{border-color:rgba(236,201,112,.75);color:#ffe2a4}
+.room-occupancy{display:inline-block;padding:2px 5px;font:700 9px "Be Vietnam Pro",sans-serif;color:#b5c7da;background:rgba(53,74,96,.52);border:1px solid rgba(193,212,232,.22);border-radius:5px;white-space:nowrap}
+.room-occupancy.has-hidden{color:#ffe0a1;background:rgba(121,91,37,.36);border-color:rgba(224,178,86,.35)}
+#view-toolbar{align-items:center}
+.view-divider{height:25px;border-left:1px solid rgba(199,213,232,.22);margin:0 4px}
+.density-choice{font:700 11px "Be Vietnam Pro",system-ui;background:rgba(10,18,28,.9);color:#b9cbe0;border:1px solid rgba(190,208,231,.2);border-radius:9px;padding:9px 11px;cursor:pointer}
+.density-choice.active{color:#102014;border-color:rgba(124,207,155,.65);background:#94dbb5}
+.density-choice:not(.active):hover{background:rgba(57,76,100,.8)}
+#visibility-caption{position:fixed;left:16px;top:140px;z-index:10;pointer-events:none;font:600 10px "Be Vietnam Pro",system-ui;color:#acc0d7;background:rgba(9,15,24,.78);border:1px solid rgba(176,198,224,.13);padding:7px 10px;border-radius:9px;max-width:375px}
+#dir-overview-note{font-size:11px;color:#9fb2c8;margin:0 0 9px;line-height:1.5}
+.dir-room .room-count{background:rgba(230,199,126,.1);padding:2px 5px;border-radius:6px}
+@media(max-width:900px){#visibility-caption{top:123px;left:10px;max-width:calc(100vw - 22px)}.density-choice{padding:8px 9px}}
+@media(max-width:500px){#view-toolbar{flex-wrap:wrap;max-width:calc(100vw - 18px)}#visibility-caption{top:163px}.view-divider{display:none}}
+
+/* Selected agent is a compact summary first; technical metadata is on demand. */
+.card h4{align-items:center;gap:12px}
+.card-actions{display:inline-flex;align-items:center;gap:6px;flex-shrink:0}
+.card .card-actions button{padding:4px 8px;color:#e0e9f6}
+.card .card-actions .card-toggle{border-color:rgba(141,190,224,.45);color:#a3d6ff;background:rgba(36,76,100,.25)}
+.card-preview{display:grid;gap:5px;margin-top:11px;padding:10px 12px;border-radius:10px;background:rgba(40,55,76,.6);border:1px solid rgba(177,203,227,.16);line-height:1.55}
+.card-preview strong{font-size:11px;color:#e6f4ff;letter-spacing:.01em}
+.card-preview .preview-work{font-size:11.5px;color:#d4e2ef;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.card-preview .preview-meta{font-size:10.5px;color:#a9bbd0}
+.card:not(.expanded) .work-detail,.card:not(.expanded) .room-tools,.card:not(.expanded) .card-extra,.card:not(.expanded) .chat{display:none!important}
+.card:not(.expanded){max-height:min(360px,calc(100vh - 190px))}
 </style>
 <script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.js","three/addons/":"/vendor/three/examples/jsm/"}}</script>
 </head>
@@ -154,10 +183,14 @@ body.zoomed .bar .pill{display:none}
 <div id="view-toolbar" role="toolbar" aria-label="Góc nhìn văn phòng">
   <button class="view-choice active" id="view-office" type="button">Văn phòng</button>
   <button class="view-choice" id="view-wide" type="button">Toàn cảnh</button>
+  <span class="view-divider" aria-hidden="true"></span>
+  <button class="density-choice active" id="density-compact" type="button" aria-pressed="true" title="Ẩn robot cũ và gom phiên theo phòng">Gọn</button>
+  <button class="density-choice" id="density-all" type="button" aria-pressed="false" title="Xem mọi robot; tên hiện rõ khi chọn phòng">Tất cả</button>
 </div>
+<div id="visibility-caption" role="status">Đang sắp xếp lại văn phòng…</div>
 <aside id="office-directory" aria-label="Các phòng và phiên AI">
   <div class="dir-head"><b>Đội AI · Phòng ban</b><small id="dir-summary">Đang kết nối</small></div>
-  <p class="dir-help">Chọn một phòng để phóng to. Chọn session để xem trạng thái và chuyển phòng.</p>
+  <p class="dir-help">Chọn phòng để xem gần, hoặc chọn phiên để mở công việc và PR/Issue.</p>
   <div class="dir-add">
     <button id="chat-add-toggle" type="button" aria-expanded="false">+ Thêm phiên ChatGPT</button>
     <form id="chat-add-form" hidden>
@@ -177,12 +210,14 @@ body.zoomed .bar .pill{display:none}
   </div>
   <div id="dir-rooms" class="dir-rooms"></div>
   <div class="dir-divider"></div>
-  <div class="dir-section"><b id="dir-section-title">Tất cả session</b><button id="dir-show-all" type="button">Hiện tất cả</button></div>
+  <div class="dir-section"><b id="dir-section-title">Phiên cần chú ý</b><button id="dir-show-all" type="button">Xem mọi phiên</button></div>
+  <div id="dir-overview-note"></div>
   <div id="dir-sessions"></div>
 </aside>
 <div class="hint" id="hint">Kéo để xoay · chụm/cuộn để phóng to · bấm vào tên một người để xem họ đang làm gì</div>
 <div class="links"><a href="tongquan.html">Tổng quan</a><a href="hopthu.html">Hòm thư</a><a href="hieusuat.html">Đánh giá nhân sự</a><a href="board.html">Mở bảng điều hành toàn màn hình</a><a href="2d.html">Sơ đồ 2D</a><a href="https://sketchfab.com/3d-models/ai-robot-f7c4e4dcd1594e3e92b2d35a4ec8a93a" target="_blank" rel="noopener noreferrer" title="AI Robot by Noores · Sketchfab Standard">Robot 3D: Noores</a></div>
 <script src="rooms.js"></script>
+<script src="office-visibility.js"></script>
 <script type="module">
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -242,6 +277,9 @@ const X = (x) => (x - 600) / S, Z = (y) => (y - 480) / S;
 const HOME_CAM = { pos: new THREE.Vector3(18, 138, 138), target: new THREE.Vector3(18, 0, 0) };
 const WIDE_CAM = { pos: new THREE.Vector3(0, 58, 158), target: new THREE.Vector3(0, 32, -20) };
 let viewMode = "office", focusedRoom = "all";
+let densityMode = "compact"; // client-side visualization only; never mutates work-session status
+let shownKeys = new Set();
+document.body.dataset.density = densityMode;
 function resize() {
   const w = innerWidth, hh = innerHeight;
   gl.setSize(w, hh); lblR.setSize(w, hh); cssR.setSize(w, hh);
@@ -308,12 +346,22 @@ function glassWall(x1, z1, x2, z2, hgt = 3.4) {
   const n = Math.max(1, Math.round(len / 7));
   for (let i = 0; i <= n; i++) add(new THREE.Mesh(new THREE.BoxGeometry(0.12, hgt, 0.14), alu), -len / 2 + (len / n) * i, hgt / 2, 0, g);
 }
+const ROOM_HEADINGS = new Map();
 for (const r of ROOMS) {
   const x0 = X(r.x) + .3, x1 = X(r.x + r.w) - .3, z0 = Z(r.y) + .3, z1 = Z(r.y + r.h) - .3;
   const rug = add(new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.08, z1 - z0), std(r.tone, { map: carpetTex, roughness: .95 })), (x0 + x1) / 2, 0.04, (z0 + z1) / 2); rug.castShadow = false;
   glassWall(x0, z0, x1, z0); glassWall(x0, z0, x0, z1); glassWall(x1, z0, x1, z1);
   const gap = Math.min(6, (x1 - x0) * .25); glassWall(x0, z1, (x0 + x1) / 2 - gap / 2, z1); glassWall((x0 + x1) / 2 + gap / 2, z1, x1, z1);
-  const lab = new CSS2DObject(h("div", "rl", r.label)); lab.position.set(x0 + 1.2, 4.2, z0 + 1.2); lab.center.set(0, .5); scene.add(lab);
+  const label = h("div", "rl");
+  label.appendChild(h("span", "", r.label));
+  if (OfficeRooms.isAgentRoom(r.id)) {
+    const occupancy = h("span", "room-occupancy", "0");
+    label.appendChild(occupancy);
+    ROOM_HEADINGS.set(r.id, occupancy);
+    label.addEventListener("click", () => setOfficeView("office", r.id));
+    label.title = "Xem chi tiết phòng " + r.label;
+  } else label.style.pointerEvents = "none";
+  const lab = new CSS2DObject(label); lab.position.set(x0 + 1.2, 4.2, z0 + 1.2); lab.center.set(0, .5); scene.add(lab);
 }
 
 // cây xanh
@@ -448,7 +496,7 @@ function buildRacks(cs) {
 }
 
 // ---------- nhân vật ----------
-const bots = {}; let selected = null;
+const bots = {}; let selected = null; let expandedCardKey = null; let lastCardSignature = "";
 // The GLB is an optional locally installed asset. If missing, keep procedural robots.
 let loadedRobot = null;
 document.documentElement.dataset.robotModel = "loading";
@@ -499,12 +547,12 @@ function makeBot(a) {
   const lab = h("div", "lb"); const bub = h("div", "b"); bub.style.display = "none"; const says = h("div");
   const statusBadge = h("div", "agent-status state-unknown", "CHƯA RÕ");
   lab.append(says, bub, statusBadge, h("div", "n", short(a.name)), h("div", "r", a.role));
-  lab.addEventListener("click", () => { selected = a.key; showCard(); });
+  lab.addEventListener("click", () => { selected = a.key; if (last) apply(last); showCard(); });
   const lo = new CSS2DObject(lab); lo.position.y = 5.0; g.add(lo);
   // Always-visible name beside the robot. Keep the status badge above its head.
   const sideName = h("div", "agent-name-side", robotShortName(a.name));
   sideName.title = a.name;
-  sideName.addEventListener("click", () => { selected = a.key; showCard(); if (last) renderDirectory(last); });
+  sideName.addEventListener("click", () => { selected = a.key; if (last) apply(last); showCard(); });
   const sideNameObject = new CSS2DObject(sideName);
   sideNameObject.center.set(0, 0.5); // label starts to the right, rather than centering on the robot
   scene.add(sideNameObject); // outside the rotating robot group: always stays to the screen-right
@@ -689,11 +737,23 @@ function setOfficeView(mode = "office", roomId = "all") {
   const [pos, target] = viewMode === "wide" ? [WIDE_CAM.pos.clone(), WIDE_CAM.target.clone()]
     : focusedRoom === "all" ? [HOME_CAM.pos.clone(), HOME_CAM.target.clone()] : roomCamera(focusedRoom);
   flyCam(pos, target, 650);
-  if (last) renderDirectory(last);
+  if (last) apply(last);
 }
 $("view-office").addEventListener("click", () => setOfficeView("office", "all"));
 $("view-wide").addEventListener("click", () => setOfficeView("wide", "all"));
-$("dir-show-all").addEventListener("click", () => setOfficeView("office", "all"));
+function setDensityMode(mode) {
+  densityMode = mode === "all" ? "all" : "compact";
+  document.body.dataset.density = densityMode;
+  for (const [id, type] of [["density-compact","compact"],["density-all","all"]]) {
+    const active = densityMode === type;
+    $(id).classList.toggle("active", active);
+    $(id).setAttribute("aria-pressed", String(active));
+  }
+  if (last) apply(last);
+}
+$("density-compact").addEventListener("click", () => setDensityMode("compact"));
+$("density-all").addEventListener("click", () => setDensityMode("all"));
+$("dir-show-all").addEventListener("click", () => { setDensityMode("all"); setOfficeView("office", "all"); });
 const directoryRooms = OfficeRooms.ROOMS.filter((r) => OfficeRooms.isAgentRoom(r.id));
 const dirButtons = new Map();
 for (const room of directoryRooms) {
@@ -770,16 +830,48 @@ $("chat-copy").addEventListener("click", async () => {
 let directorySignature = "";
 function renderDirectory(s) {
   const members = s.agents || [];
-  const sig = focusedRoom + "|" + (selected || "") + "|" + members.map((a) => [a.key,a.name,a.room,a.roomSource,a.status,a.flag,a.connection,a.lastHeartbeat,a.task,a.detailUpdatedAt,(a.observation?.delivery?.links?.prs||[]).join(","),(a.observation?.delivery?.links?.issues||[]).join(",")].join(":")).join("|");
-  $("dir-summary").textContent = members.filter((a) => a.platform !== "human").length + " phiên AI";
+  const summary = OfficeVisibility.summary(members, shownKeys);
+  $("dir-summary").textContent = densityMode === "compact" ?
+    summary.shown + "/" + summary.total + " trên sàn" : summary.total + " phiên AI";
+  $("dir-summary").title = summary.hidden + " phiên được ẩn khỏi mặt sàn (không bị xóa)";
   for (const [id, val] of dirButtons) {
-    val.count.textContent = String(members.filter((a) => a.room === id).length);
+    const roomMembers = members.filter(a => a.room === id);
+    const visible = roomMembers.filter(a => shownKeys.has(a.key)).length;
+    const count = roomMembers.length, hidden = count - visible;
+    val.count.textContent = String(count);
+    val.b.title = OfficeRooms.label(id) + ": " + count + " phiên, " + hidden + " đang gom gọn";
     val.b.classList.toggle("active", focusedRoom === id);
+    const heading = ROOM_HEADINGS.get(id);
+    if (heading) {
+      heading.textContent = count ? count + (hidden ? " · +" + hidden : "") : "0";
+      heading.classList.toggle("has-hidden", hidden > 0);
+      heading.title = count + " phiên · " + visible + " robot hiện · " + hidden + " robot gom gọn";
+    }
   }
+  const sig = densityMode + "|" + focusedRoom + "|" + (selected || "") + "|" +
+    [...shownKeys].sort().join(",") + "|" + members.map(a => [
+      a.key,a.name,a.room,a.roomSource,a.status,a.flag,a.connection,a.lastHeartbeat,
+      a.task,a.detailUpdatedAt,(a.observation?.delivery?.links?.prs||[]).join(","),
+      (a.observation?.delivery?.links?.issues||[]).join(",")
+    ].join(":")).join("|");
   if (sig === directorySignature) return;
   directorySignature = sig;
-  const subset = focusedRoom === "all" ? members : members.filter((a) => a.room === focusedRoom);
-  $("dir-section-title").textContent = focusedRoom === "all" ? "Tất cả session" : OfficeRooms.label(focusedRoom);
+  const membersOfRoom = focusedRoom === "all" ?
+    members : members.filter(a => a.room === focusedRoom);
+  const subset = focusedRoom === "all" && densityMode === "compact" ?
+    OfficeVisibility.mostRelevant(membersOfRoom.filter(a =>
+      a.platform === "human" || a.key === selected || OfficeVisibility.isAttention(a) ||
+      OfficeVisibility.linkCount(a) > 0 || (a.task && a.connection === "live"))).slice(0, 8) :
+    OfficeVisibility.mostRelevant(membersOfRoom);
+  const hiddenInList = membersOfRoom.length - subset.length;
+  $("dir-section-title").textContent = focusedRoom !== "all" ? OfficeRooms.label(focusedRoom) :
+    densityMode === "compact" ? "Phiên cần chú ý" : "Tất cả phiên";
+  $("dir-show-all").textContent = densityMode === "compact" ? "Xem mọi phiên" : "Toàn bộ phòng";
+  $("dir-overview-note").textContent = densityMode === "compact" ?
+    focusedRoom === "all" ? summary.hidden + " robot đã gom gọn; " + hiddenInList +
+      " phiên khác vẫn có thể chọn từ phòng bên trên." :
+      "Chọn tên để hiện robot ẩn. Nút Tất cả sẽ mở đủ phiên trong phòng." :
+    "Đang hiện mọi robot; chọn từng phòng để đọc tên rõ hơn.";
   const target = $("dir-sessions"); target.textContent = "";
   if (!subset.length) {
     target.appendChild(h("p", "dir-empty", "Phòng này chưa có session. Các phiên có prefix đúng sẽ tự chuyển vào đây."));
@@ -801,6 +893,7 @@ function renderDirectory(s) {
     b.addEventListener("click", () => {
       selected = agent.key;
       if (focusedRoom !== agent.room) setOfficeView("office", agent.room);
+      else if (last) apply(last);
       showCard();
       renderDirectory(last);
     });
@@ -817,13 +910,13 @@ gl.domElement.addEventListener("pointerup", (ev) => {
   if (!start || zoomed || Math.hypot(ev.clientX - start.x, ev.clientY - start.y) > 7) return;
   ndc.set(ev.clientX / innerWidth * 2 - 1, -(ev.clientY / innerHeight) * 2 + 1);
   ray.setFromCamera(ndc, camera);
-  const hits = ray.intersectObjects(Object.values(bots).map((bot) => bot.g), true);
+  const hits = ray.intersectObjects(Object.values(bots).filter(bot => bot.g.visible).map(bot => bot.g), true);
   for (const hit of hits) {
     for (const [key, bot] of Object.entries(bots)) {
       let node = hit.object;
       while (node && node !== scene) {
         if (node === bot.g) {
-          selected = key; showCard(); if (last) renderDirectory(last); return;
+          selected = key; if (last) apply(last); showCard(); return;
         }
         node = node.parent;
       }
@@ -887,8 +980,16 @@ let last = null; const seen = new Set(); let first = true;
 function apply(s) {
   last = s;
   const A = s.agents, staff = A.filter((a) => a.platform !== "human");
+  shownKeys = OfficeVisibility.choose(A, { mode: densityMode, focusedRoom, selected });
+  const visibility = OfficeVisibility.summary(A, shownKeys);
+  document.documentElement.dataset.visibleRobotCount = String(shownKeys.size);
+  document.documentElement.dataset.hiddenRobotCount = String(visibility.hidden);
+  $("visibility-caption").textContent = densityMode === "compact" ?
+    visibility.shown + "/" + visibility.total + " phiên trên sàn · " + visibility.hidden +
+      " gom gọn · Chọn phòng để xem thêm" :
+    "Đang xem toàn bộ " + visibility.total + " phiên · Chọn phòng để đọc tên";
+  computedSeats = OfficeRooms.arrange(A.filter(a => shownKeys.has(a.key)));
   renderDirectory(s);
-  computedSeats = OfficeRooms.arrange(A);
   $("clock").textContent = new Date(s.now).toLocaleTimeString("vi-VN", { hour12: false });
   $("k1").textContent = staff.filter((a) => a.status === "active" && !a.flag).length;
   $("k2").textContent = A.filter((a) => a.flag).length;
@@ -908,7 +1009,10 @@ function apply(s) {
   for (const a of A) {
     const fresh = seatFor(a);
     const b = bots[a.key] || (bots[a.key] = makeBot(a));
-    if (fresh && !first) say(b, "🆕 Nhân viên mới", `Chào cả phòng, em là ${short(a.name)} (${a.platform === "codex" ? "Codex" : "Claude"}), vừa vào làm.`, "#ecc970", 20000);
+    const visible = shownKeys.has(a.key);
+    b.g.visible = visible;
+    if (DESKS[a.key]) DESKS[a.key].visible = visible;
+    if (fresh && visible && !first) say(b, "🆕 Nhân viên mới", `Chào cả phòng, em là ${short(a.name)} (${a.platform === "codex" ? "Codex" : "Claude"}), vừa vào làm.`, "#ecc970", 20000);
     const p = a.where === "dev" ? DEV_SEAT : a.where === "g1q" ? G1Q[Math.min(q++, G1Q.length - 1)] : (HOME[a.key] || [600, 400]);
     b.target.set(X(p[0]), 0.14, Z(p[1]) + (a.where === "dev" || a.where === "g1q" ? 0 : -0.6));
     if (b.meet && meet && a.where === "dev") { leave(a.key, meet); delete meet.slots[a.key]; meet.members = meet.members.filter((x) => x !== a.key); }
@@ -933,7 +1037,19 @@ function apply(s) {
     const [badgeLabel, badgeKind] = badgeOf(a);
     b.statusBadge.textContent = badgeLabel;
     b.statusBadge.className = "agent-status state-" + badgeKind;
-    b.lab.classList.toggle("sel", selected === a.key);
+    const selectedBot = selected === a.key;
+    const attention = OfficeVisibility.isAttention(a);
+    const roomVisible = focusedRoom !== "all" && focusedRoom === a.room;
+    const roomCount = A.filter(x => shownKeys.has(x.key) && x.room === a.room).length;
+    const showBadge = visible && (selectedBot || attention ||
+      (densityMode === "all" && roomVisible && roomCount <= 3));
+    const showName = visible && (densityMode === "compact" || selectedBot ||
+      a.platform === "human" || attention || (roomVisible && roomCount <= 4));
+    b.statusBadge.style.display = showBadge ? "inline-flex" : "none";
+    b.lab.style.display = showBadge ? "" : "none";
+    b.nameTag.visible = showName;
+    b.sideName.style.display = showName ? "inline-flex" : "none";
+    b.lab.classList.toggle("sel", selectedBot);
     b.lab.classList.toggle("summary", selected !== a.key && (focusedRoom === "all" || a.room !== focusedRoom));
     const compactName = robotShortName(a.name);
     if (b.sideName.textContent !== compactName) b.sideName.textContent = compactName;
@@ -953,15 +1069,49 @@ function showCard() {
     bots[k].lab.classList.toggle("sel", k === selected);
     bots[k].sideName.classList.toggle("selected", k === selected);
   }
-  if (!a) { c.style.display = "none"; return; }
+  if (!a) { c.style.display = "none"; lastCardSignature = ""; return; }
+  const cardSignature = JSON.stringify([
+    a.key,a.name,a.role,a.room,a.roomSource,a.platform,
+    a.status,a.flag,a.connection,a.reportedState,a.lastHeartbeat,a.lastActive,
+    a.lastText,a.lastTextAt,a.task,a.progress,a.blocker,a.detailUpdatedAt,
+    a.observation?.activity?.state,a.observation?.activity?.observedAt,
+    a.observation?.work?.state,a.observation?.work?.observedAt,
+    a.observation?.delivery?.links,a.observation?.delivery?.prs,
+    a.observation?.delivery?.issues,a.observation?.delivery?.suggestions,
+    expandedCardKey === selected,Math.floor(Date.now() / 60000)
+  ]);
+  // SSE updates every second; replacing DOM on unchanged data makes buttons
+  // detach mid-click. Keep the card stable until a real field changes.
+  if (c.style.display === "block" && cardSignature === lastCardSignature) return;
+  lastCardSignature = cardSignature;
   c.style.display = "block";
   let info = c.querySelector(".info"); if (!info) { info = h("div", "info"); c.prepend(info); } info.textContent = ""; // phần thông tin vẽ lại mỗi giây, ô nhắn tin giữ nguyên
-  const h4 = h("h4", "", short(a.name)); const x = h("button", "", "Đóng"); x.onclick = () => { selected = null; c.style.display = "none"; showCard(); }; h4.appendChild(x); info.appendChild(h4);
+  const expanded = expandedCardKey === selected;
+  c.classList.toggle("expanded", expanded);
+  const h4 = h("h4", "", short(a.name));
+  const actions = h("span", "card-actions");
+  const toggle = h("button", "card-toggle", expanded ? "Thu gọn" : "Chi tiết");
+  toggle.type = "button"; toggle.setAttribute("aria-expanded", String(expanded));
+  toggle.onclick = () => { expandedCardKey = expanded ? null : selected; showCard(); };
+  const x = h("button", "", "Đóng");
+  x.onclick = () => { selected = null; expandedCardKey = null; c.style.display = "none"; if (last) apply(last); showCard(); };
+  actions.append(toggle, x); h4.appendChild(actions); info.appendChild(h4);
   const st = (a.platform === "work" || a.platform === "chatgpt") ? badgeOf(a)[0] : a.flag === "blocked" ? "bị chặn" : a.flag === "waiting" ? `chờ lượt DEV #${a.queuePos || ""}` : a.where === "dev" ? "đang trên DEV" : { active: "đang làm", idle: "đang rảnh", away: "nghỉ lâu", offline: "không đọc được nhật ký" }[a.status];
   const platformName = a.platform === "codex" ? "Codex" : a.platform === "claude" ? "Claude" : a.platform === "work" ? "ChatGPT Work" : a.platform === "chatgpt" ? "ChatGPT Chat" : "Người";
   const roleLabel = a.role === platformName ? platformName : a.role + " · " + platformName;
   info.append(h("div", "m", `${roleLabel} · ${st}${a.lastActive ? (a.platform === "work" || a.platform === "chatgpt" ? " · heartbeat " : " · hoạt động ") + ago(a.lastActive) + " trước" : ""}`));
-  if (a.lastText) info.appendChild(h("p", "", "“" + a.lastText + "”"));
+  const preview = h("div", "card-preview");
+  const currentTask = a.task || a.observation?.work?.task || "";
+  const progress = a.progress || a.observation?.work?.progress || "";
+  const prsCount = a.observation?.delivery?.links?.prs?.length || 0;
+  const issueCount = a.observation?.delivery?.links?.issues?.length || 0;
+  preview.append(h("strong", "", "TÓM TẮT CÔNG VIỆC"),
+    h("div", "preview-work", currentTask || "Phiên chưa gửi mô tả công việc."));
+  if (progress) preview.appendChild(h("div", "preview-work", progress));
+  preview.appendChild(h("div", "preview-meta", prsCount + " PR · " + issueCount +
+    " Issue liên kết · Nguồn thông tin: báo cáo phiên/GitHub"));
+  info.appendChild(preview);
+  if (a.lastText) info.appendChild(h("p", "card-extra", "“" + a.lastText + "”"));
   if (a.platform === "work" || a.platform === "chatgpt") {
     const detail = h("section", "work-detail");
     detail.appendChild(h("h5", "", "CÔNG VIỆC AGENT ĐÃ BÁO"));
@@ -1058,7 +1208,7 @@ function showCard() {
     box.appendChild(more);info.appendChild(box);
   }
   if (!a.ceo) {
-    info.appendChild(h("div", "m", "Phòng: " + OfficeRooms.label(a.room) +
+    info.appendChild(h("div", "m card-extra", "Phòng: " + OfficeRooms.label(a.room) +
       " · " + (a.roomSource === "manual" ? "Gán thủ công" : a.roomSource === "prefix" ? "Theo prefix" :
       a.roomSource === "owner" ? "Theo tên" : a.roomSource === "config" ? "Cấu hình" : "Chưa có tên")));
     let tools = c.querySelector(".room-tools");
@@ -1092,7 +1242,7 @@ function showCard() {
     if (tools) tools.remove();
   }
   if (a.platform === "work" || a.platform === "chatgpt") {
-    info.appendChild(h("p", "m", a.connection === "live" ? "Heartbeat mới nhất đã nhận." : a.connection === "unlinked" ? "Chưa nhận heartbeat từ phiên này; tiêu đề không chứng minh đang chạy." : "Heartbeat đã quá hạn 5 phút. Đây chỉ là trạng thái cuối được báo, không xác nhận phiên còn chạy."));
+    info.appendChild(h("p", "m card-extra", a.connection === "live" ? "Heartbeat mới nhất đã nhận." : a.connection === "unlinked" ? "Chưa nhận heartbeat từ phiên này; tiêu đề không chứng minh đang chạy." : "Heartbeat đã quá hạn 5 phút. Đây chỉ là trạng thái cuối được báo, không xác nhận phiên còn chạy."));
   } else window.ChatBox && ChatBox.mount(c, a);
 }
 window.thuTin = (from, to, title, kind = "msg") => handle({ t: Date.now(), kind, from, to, title }, true); // thử hiệu ứng tin nhắn
